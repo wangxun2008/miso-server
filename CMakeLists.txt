@@ -1,10 +1,23 @@
-cmake_minimum_required(VERSION 3.10)
-project(miso_server LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.14)
+project(miso_server)
 
-find_package(SqliteOrm CONFIG REQUIRED)
+set(CMAKE_CXX_STANDARD 17)
+
+# sqlite_orm header-only，假设路径为 ../sqlite_orm/include
+include_directories(include ../sqlite_orm/include)
+
+# 链接 sqlite3
+find_package(SQLite3 REQUIRED)
+
+add_library(miso STATIC
+    src/user_manager.cpp
+    src/clan_manager.cpp
+)
+target_include_directories(miso PUBLIC include)
+target_link_libraries(miso PUBLIC SQLite::SQLite3)
 
 add_executable(main main.cpp)
+target_link_libraries(main miso)
 
-target_link_libraries(main PRIVATE sqlite_orm::sqlite_orm)
-
-set_property(TARGET main PROPERTY CXX_STANDARD 17)
+add_executable(run_tests tests.cpp)
+target_link_libraries(run_tests miso)
