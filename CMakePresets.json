@@ -4,7 +4,6 @@
         {
             "name": "base",
             "hidden": true,
-            "generator": "Unix Makefiles",
             "binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
                 "CMAKE_CXX_STANDARD": "17",
@@ -13,40 +12,54 @@
             }
         },
         {
-            "name": "debug",
+            "name": "linux-debug",
             "inherits": "base",
-            "displayName": "Debug Config",
-            "description": "Debug build with vcpkg",
+            "displayName": "Linux Debug",
+            "generator": "Unix Makefiles",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_TOOLCHAIN_FILE": {
-                    "type": "PATH",
-                    "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
-                }
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
             }
         },
         {
-            "name": "release",
+            "name": "linux-release",
             "inherits": "base",
-            "displayName": "Release Config",
-            "description": "Release build with vcpkg",
+            "displayName": "Linux Release",
+            "generator": "Unix Makefiles",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
-                "CMAKE_TOOLCHAIN_FILE": {
-                    "type": "PATH",
-                    "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
-                }
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+            }
+        },
+        {
+            "name": "mingw-debug",
+            "inherits": "base",
+            "displayName": "MinGW-w64 Debug",
+            "generator": "MinGW Makefiles",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+                "VCPKG_TARGET_TRIPLET": "x64-mingw-static",
+                "CMAKE_MAKE_PROGRAM": "C:/Program Files/RedPanda-Cpp/mingw64-ucrt-15/bin/mingw32-make.exe"
+            }
+        },
+        {
+            "name": "mingw-release",
+            "inherits": "base",
+            "displayName": "MinGW-w64 Release",
+            "generator": "MinGW Makefiles",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+                "VCPKG_TARGET_TRIPLET": "x64-mingw-static",
+                "CMAKE_MAKE_PROGRAM": "C:/Program Files/RedPanda-Cpp/mingw64-ucrt-15/bin/mingw32-make.exe"
             }
         }
     ],
     "buildPresets": [
-        {
-            "name": "debug",
-            "configurePreset": "debug"
-        },
-        {
-            "name": "release",
-            "configurePreset": "release"
-        }
+        { "name": "linux-debug",   "configurePreset": "linux-debug" },
+        { "name": "linux-release", "configurePreset": "linux-release" },
+        { "name": "mingw-debug",   "configurePreset": "mingw-debug" },
+        { "name": "mingw-release", "configurePreset": "mingw-release" }
     ]
 }
