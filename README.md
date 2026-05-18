@@ -15,7 +15,7 @@
 克隆仓库
 
 ```
-git clone https://github.com/your-org/miso_server.git
+git clone https://github.com/wangxun2008/miso_server.git
 ```
 
 Linux 下构建
