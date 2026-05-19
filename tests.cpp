@@ -4,6 +4,7 @@
 #include "exceptions.h"
 #include "user_manager.h"
 #include "clan_manager.h"
+#include "chat_manager.h"
 
 using namespace app;
 
@@ -121,10 +122,71 @@ void testClanOperations() {
     std::cout << "testClanOperations passed.\n";
 }
 
+void testChat() {
+    auto storage = createStorage(":memory:");
+    storage.sync_schema();
+    UserManager um(storage);
+    ClanManager cm(storage, um);
+    ChatManager chat(storage, um, cm);
+
+    // 准备用户
+    int uid1 = um.registerUser("alice", "pwd");
+    int uid2 = um.registerUser("bob", "pwd");
+    int uid3 = um.registerUser("charlie", "pwd");
+
+    // 创建战队
+    int clanId = cm.createClan("DreamTeam", uid1);
+    cm.addMember(clanId, uid2); // uid2 加入
+
+    // 发送全局消息
+    int gMsgId = chat.sendGlobalMessage(uid1, "Hello everyone!");
+    assert(gMsgId > 0);
+    // 未活跃用户不能发（测试 uid3 是活跃的，所以可以发）
+    // 尝试用不存在的用户发消息
+    try {
+        chat.sendGlobalMessage(9999, "Ghost");
+        assert(false);
+    } catch (const UserNotFoundException&) {}
+
+    // 发送战队消息
+    int cMsgId = chat.sendClanMessage(uid1, clanId, "Hi team");
+    assert(cMsgId > 0);
+    // 非成员不能发战队消息
+    try {
+        chat.sendClanMessage(uid3, clanId, "Intruder");
+        assert(false);
+    } catch (const NotMemberOfClanException&) {}
+
+    // 获取全局消息
+    auto globals = chat.getGlobalMessages();
+    assert(globals.size() == 1);
+    assert(globals[0].content == "Hello everyone!");
+
+    // 获取战队消息（uid2 是成员，可以查看）
+    auto clanMsgs = chat.getClanMessages(clanId, uid2);
+    assert(clanMsgs.size() == 1);
+    assert(clanMsgs[0].content == "Hi team");
+    // uid3 不是成员，查看战队消息应抛异常
+    try {
+        chat.getClanMessages(clanId, uid3);
+        assert(false);
+    } catch (const NotMemberOfClanException&) {}
+
+    // 再发一条全局消息，检查分页
+    chat.sendGlobalMessage(uid2, "Second");
+    auto recentTwo = chat.getGlobalMessages(2, 0);
+    assert(recentTwo.size() == 2);
+    // 按时间倒序，最新的在前
+    assert(recentTwo[0].content == "Second");
+
+    std::cout << "testChat passed.\n";
+}
+
 int main() {
     try {
         testUserRegistration();
         testClanOperations();
+		testChat();
         std::cout << "All tests passed." << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Test failed: " << e.what() << std::endl;

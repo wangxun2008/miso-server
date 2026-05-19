@@ -83,4 +83,20 @@ public:
         : ClanException("New leader " + std::to_string(userId) + " is not in clan " + std::to_string(clanId)) {}
 };
 
+class ChatException : public AppException {
+public:
+    explicit ChatException(const std::string& msg) : AppException(msg) {}
+};
+
+class InvalidMessageTargetException : public ChatException {
+public:
+    InvalidMessageTargetException() : ChatException("Invalid message target") {}
+};
+
+class NotMemberOfClanException : public ChatException {
+public:
+    explicit NotMemberOfClanException(int userId, int clanId)
+        : ChatException("User " + std::to_string(userId) + " is not a member of clan " + std::to_string(clanId)) {}
+};
+
 } // namespace app

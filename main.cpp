@@ -4,6 +4,7 @@
 #include "exceptions.h"
 #include "user_manager.h"
 #include "clan_manager.h"
+#include "chat_manager.h"
 
 using namespace app;
 
@@ -29,6 +30,7 @@ int main() {
         storage.sync_schema();
         UserManager um(storage);
         ClanManager cm(storage, um);
+        ChatManager chat(storage, um, cm);
 
         int choice;
         while (true) {
@@ -223,7 +225,82 @@ int main() {
                         std::cerr << "操作失败: " << e.what() << std::endl;
                     }
                 }
-            } else {
+            } else if (choice == 3) {
+				int chatChoice;
+				int senderId, clanId, userId;
+				std::string content;
+				while (true) {
+					std::cout << "\n--- 聊天功能 ---" << std::endl;
+					std::cout << "1. 发送全局消息" << std::endl;
+					std::cout << "2. 发送战队消息" << std::endl;
+					std::cout << "3. 查看全局消息" << std::endl;
+					std::cout << "4. 查看战队消息" << std::endl;
+					std::cout << "0. 返回主菜单" << std::endl;
+					std::cout << "选择: ";
+					std::cin >> chatChoice;
+					if (chatChoice == 0) break;
+
+					try {
+						switch (chatChoice) {
+						case 1:
+							std::cout << "发送者用户ID: "; std::cin >> senderId;
+							std::cin.ignore(); // 忽略换行
+							std::cout << "消息内容: ";
+							std::getline(std::cin, content);
+							{
+								int msgId = chat.sendGlobalMessage(senderId, content);
+								std::cout << "全局消息发送成功，ID: " << msgId << std::endl;
+							}
+							break;
+						case 2:
+							std::cout << "发送者用户ID: "; std::cin >> senderId;
+							std::cout << "目标战队ID: "; std::cin >> clanId;
+							std::cin.ignore();
+							std::cout << "消息内容: ";
+							std::getline(std::cin, content);
+							{
+								int msgId = chat.sendClanMessage(senderId, clanId, content);
+								std::cout << "战队消息发送成功，ID: " << msgId << std::endl;
+							}
+							break;
+						case 3:
+							{
+								auto msgs = chat.getGlobalMessages(20, 0); // 最近20条
+								if (msgs.empty()) {
+									std::cout << "暂无全局消息" << std::endl;
+								} else {
+									for (const auto& msg : msgs) {
+										std::cout << "[" << msg.created_at << "] "
+												  << um.getUserName(msg.sender_id) << ": "
+												  << msg.content << std::endl;
+									}
+								}
+							}
+							break;
+						case 4:
+							std::cout << "你的用户ID: "; std::cin >> userId;
+							std::cout << "战队ID: "; std::cin >> clanId;
+							{
+								auto msgs = chat.getClanMessages(clanId, userId, 20, 0);
+								if (msgs.empty()) {
+									std::cout << "暂无战队消息" << std::endl;
+								} else {
+									for (const auto& msg : msgs) {
+										std::cout << "[" << msg.created_at << "] "
+												  << um.getUserName(msg.sender_id) << ": "
+												  << msg.content << std::endl;
+									}
+								}
+							}
+							break;
+						default:
+							std::cout << "无效选项" << std::endl;
+						}
+					} catch (const AppException& e) {
+						std::cerr << "操作失败: " << e.what() << std::endl;
+					}
+				}
+			} else {
                 std::cout << "无效选项" << std::endl;
             }
         }

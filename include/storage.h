@@ -27,6 +27,15 @@ struct ClanMember {
     int user_id = 0;
 };
 
+struct Message {
+    int id = 0;
+    int sender_id = 0;
+    int target_type = 0;        // 0: global, 1: clan
+    std::optional<int> target_id; // clan_id，若 target_type 为 global 则为 nullopt
+    std::string content;
+    int64_t created_at = 0;
+};
+
 // ---------- 存储工厂 ----------
 inline auto createStorage(const std::string& dbPath) {
     using namespace sqlite_orm;
@@ -53,7 +62,17 @@ inline auto createStorage(const std::string& dbPath) {
             unique(&ClanMember::clan_id, &ClanMember::user_id),
             foreign_key(&ClanMember::clan_id).references(&Clan::id).on_delete.cascade(),
             foreign_key(&ClanMember::user_id).references(&User::id)
-        )
+        ),
+		make_table("messages",
+			make_column("id", &Message::id, primary_key().autoincrement()),
+			make_column("sender_id", &Message::sender_id),
+			make_column("target_type", &Message::target_type, default_value(0)),
+			make_column("target_id", &Message::target_id),  // nullable
+			make_column("content", &Message::content),
+			make_column("created_at", &Message::created_at),
+			foreign_key(&Message::sender_id).references(&User::id)
+		//	foreign_key(&Message::target_id).references(&Clan::id)
+		)
     );
 }
 
