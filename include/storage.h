@@ -36,6 +36,15 @@ struct Message {
     int64_t created_at = 0;
 };
 
+struct ClanApplication {
+    int id = 0;
+    int clan_id = 0;
+    int applicant_id = 0;
+    int status = 0;            // 0: pending, 1: approved, 2: rejected
+    int64_t created_at = 0;
+    std::optional<int64_t> updated_at = std::nullopt; // 处理时间
+};
+
 // ---------- 存储工厂 ----------
 inline auto createStorage(const std::string& dbPath) {
     using namespace sqlite_orm;
@@ -71,7 +80,17 @@ inline auto createStorage(const std::string& dbPath) {
 			make_column("content", &Message::content),
 			make_column("created_at", &Message::created_at),
 			foreign_key(&Message::sender_id).references(&User::id)
-		//	foreign_key(&Message::target_id).references(&Clan::id)
+		),
+		make_table("clan_applications",
+			make_column("id", &ClanApplication::id, primary_key().autoincrement()),
+			make_column("clan_id", &ClanApplication::clan_id),
+			make_column("applicant_id", &ClanApplication::applicant_id),
+			make_column("status", &ClanApplication::status, default_value(0)),
+			make_column("created_at", &ClanApplication::created_at),
+			make_column("updated_at", &ClanApplication::updated_at),
+			unique(&ClanApplication::clan_id, &ClanApplication::applicant_id, &ClanApplication::status),
+			foreign_key(&ClanApplication::clan_id).references(&Clan::id).on_delete.cascade(),
+			foreign_key(&ClanApplication::applicant_id).references(&User::id)
 		)
     );
 }

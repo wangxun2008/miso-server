@@ -121,4 +121,121 @@ bool ClanManager::isClanActive(int clanId) const {
     return !clans.empty();
 }
 
+int ClanManager::applyToClan(int clanId, int userId) {
+    // 1. 验证用户活跃
+    if (!userMgr.isUserActive(userId)) {
+        throw UserNotFoundException("ID " + std::to_string(userId));
+    }
+    // 2. 验证战队活跃
+    Clan clan = getClan(clanId); // 自动检查活跃性
+
+    // 3. 检查是否已是成员
+    auto members = getClanMembers(clanId);
+    for (const auto& m : members) {
+        if (m.user_id == userId) {
+            throw AlreadyMemberException(userId, clanId);
+        }
+    }
+
+    // 4. 检查是否已有待审批申请
+    auto existing = storage.get_all<ClanApplication>(
+        where(c(&ClanApplication::clan_id) == clanId
+              and c(&ClanApplication::applicant_id) == userId
+              and c(&ClanApplication::status) == 0)  // pending only
+    );
+    if (!existing.empty()) {
+        throw AlreadyAppliedException(userId, clanId);
+    }
+
+    // 5. 创建申请
+    ClanApplication app;
+    app.clan_id = clanId;
+    app.applicant_id = userId;
+    app.status = 0; // pending
+    app.created_at = getCurrentTimestamp();
+    return storage.insert(app);
+}
+
+void ClanManager::processApplication(int applicationId, int handlerId, const std::string& action) {
+    // 1. 查找申请
+    auto apps = storage.get_all<ClanApplication>(
+        where(c(&ClanApplication::id) == applicationId and c(&ClanApplication::status) == 0)
+    );
+    if (apps.empty()) {
+        throw ApplicationNotFoundException(applicationId);
+    }
+    ClanApplication app = apps.front();
+
+    // 2. 验证处理人是该战队领导者
+    Clan clan = getClan(app.clan_id);
+    if (clan.leader_id != handlerId) {
+        throw NotAuthorizedException();
+    }
+
+    // 3. 事务处理（批准时需要添加成员）
+    auto guard = storage.transaction_guard();
+
+    if (action == "approve") {
+        // 检查用户是否还在活跃状态
+        if (!userMgr.isUserActive(app.applicant_id)) {
+            throw UserNotFoundException("ID " + std::to_string(app.applicant_id));
+        }
+        // 检查是否已在战队（可能同时被别的途径加入）
+        auto members = getClanMembers(app.clan_id);
+        bool alreadyMember = false;
+        for (const auto& m : members) {
+            if (m.user_id == app.applicant_id) {
+                alreadyMember = true;
+                break;
+            }
+        }
+        if (alreadyMember) {
+            throw AlreadyMemberException(app.applicant_id, app.clan_id);
+        }
+
+        // 添加成员
+        ClanMember cm{-1, app.clan_id, app.applicant_id};
+        storage.insert(cm);
+
+        app.status = 1; // approved
+        app.updated_at = getCurrentTimestamp();
+        storage.update(app);
+    } else if (action == "reject") {
+        app.status = 2; // rejected
+        app.updated_at = getCurrentTimestamp();
+        storage.update(app);
+    } else {
+        throw AppException("Invalid action: " + action);
+    }
+
+    guard.commit();
+}
+
+std::vector<ClanApplication> ClanManager::getMyApplications(int userId, std::optional<int> statusFilter) const {
+    if (statusFilter.has_value()) {
+        return storage.get_all<ClanApplication>(
+            where(c(&ClanApplication::applicant_id) == userId
+                  and c(&ClanApplication::status) == statusFilter.value()),
+            order_by(&ClanApplication::created_at).desc()
+        );
+    } else {
+        return storage.get_all<ClanApplication>(
+            where(c(&ClanApplication::applicant_id) == userId),
+            order_by(&ClanApplication::created_at).desc()
+        );
+    }
+}
+
+std::vector<ClanApplication> ClanManager::getPendingApplications(int clanId, int leaderId) const {
+    // 验证领导者身份
+    Clan clan = getClan(clanId);
+    if (clan.leader_id != leaderId) {
+        throw NotAuthorizedException();
+    }
+    return storage.get_all<ClanApplication>(
+        where(c(&ClanApplication::clan_id) == clanId and c(&ClanApplication::status) == 0),
+        order_by(&ClanApplication::created_at).asc()
+    );
+}
+
 } // namespace app

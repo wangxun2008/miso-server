@@ -99,4 +99,32 @@ public:
         : ChatException("User " + std::to_string(userId) + " is not a member of clan " + std::to_string(clanId)) {}
 };
 
+class ApplicationException : public AppException {
+public:
+    explicit ApplicationException(const std::string& msg) : AppException(msg) {}
+};
+
+class AlreadyAppliedException : public ApplicationException {
+public:
+    AlreadyAppliedException(int userId, int clanId)
+        : ApplicationException("User " + std::to_string(userId) + " already applied to clan " + std::to_string(clanId)) {}
+};
+
+class ApplicationNotFoundException : public ApplicationException {
+public:
+    explicit ApplicationNotFoundException(int applicationId)
+        : ApplicationException("Application not found: " + std::to_string(applicationId)) {}
+};
+
+class NotAuthorizedException : public ApplicationException {
+public:
+    NotAuthorizedException() : ApplicationException("Not authorized to perform this action") {}
+};
+
+class AlreadyMemberException : public ApplicationException {
+public:
+    AlreadyMemberException(int userId, int clanId)
+        : ApplicationException("User " + std::to_string(userId) + " is already a member of clan " + std::to_string(clanId)) {}
+};
+
 } // namespace app

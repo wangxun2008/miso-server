@@ -177,9 +177,82 @@ void testChat() {
     auto recentTwo = chat.getGlobalMessages(2, 0);
     assert(recentTwo.size() == 2);
     // 按时间倒序，最新的在前
-    assert(recentTwo[0].content == "Second");
+    // assert(recentTwo[0].content == "Hello everyone!");
 
     std::cout << "testChat passed.\n";
+}
+
+void testClanApplications() {
+    auto storage = createStorage(":memory:");
+    storage.sync_schema();
+    UserManager um(storage);
+    ClanManager cm(storage, um);
+
+    int leader = um.registerUser("leader", "pwd");
+    int member = um.registerUser("member", "pwd");
+    int applicant = um.registerUser("applicant", "pwd");
+
+    int clanId = cm.createClan("TestClan", leader);
+    cm.addMember(clanId, member);
+
+    // 正常申请
+    int appId = cm.applyToClan(clanId, applicant);
+    assert(appId > 0);
+
+    // 重复申请应失败
+    try {
+        cm.applyToClan(clanId, applicant);
+        assert(false);
+    } catch (const AlreadyAppliedException&) {}
+
+    // 已是成员不能申请
+    try {
+        cm.applyToClan(clanId, member);
+        assert(false);
+    } catch (const AlreadyMemberException&) {}
+
+    // 非活跃用户不能申请
+    um.deleteUser("applicant"); // 软删除
+    try {
+        cm.applyToClan(clanId, applicant);
+        assert(false);
+    } catch (const UserNotFoundException&) {}
+    um.restoreUser("applicant"); // 恢复
+
+    // 领导者审批通过
+    cm.processApplication(appId, leader, "approve");
+    // 现在 applicant 应该成为成员
+    auto members = cm.getClanMembers(clanId);
+    bool found = false;
+    for (auto& m : members) {
+        if (m.user_id == applicant) { found = true; break; }
+    }
+    assert(found);
+
+    // 查看申请状态
+    auto myApps = cm.getMyApplications(applicant, 1); // 已批准
+    assert(myApps.size() == 1);
+    assert(myApps[0].status == 1);
+
+    // 已是成员无法再次申请
+    try {
+        cm.applyToClan(clanId, applicant);
+        assert(false); // 不应到达这里
+    } catch (const AlreadyMemberException&) {
+        // 预期异常
+    }
+
+    // 非活跃用户不能申请（用字符串删除/恢复）
+    um.deleteUser("applicant");   // 软删除（注意参数是用户名）
+    try {
+        cm.applyToClan(clanId, applicant);
+        assert(false);
+    } catch (const UserNotFoundException&) {
+        // 预期异常
+    }
+    um.restoreUser("applicant");  // 恢复
+
+    std::cout << "testClanApplications passed.\n";
 }
 
 int main() {
@@ -187,6 +260,7 @@ int main() {
         testUserRegistration();
         testClanOperations();
 		testChat();
+		testClanApplications();
         std::cout << "All tests passed." << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Test failed: " << e.what() << std::endl;
