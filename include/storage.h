@@ -45,6 +45,15 @@ struct ClanApplication {
     std::optional<int64_t> updated_at = std::nullopt; // 处理时间
 };
 
+struct GameRecord {
+    int id = 0;
+    int user_id = 0;
+    int mode = 0;              // 1: 初级, 2: 中级, 3: 高级
+    int64_t played_at = 0;     // 游戏结束时间戳
+    int duration_seconds = 0;  // 用时（秒）
+    int three_bv = 0;          // 3BV 值
+};
+
 // ---------- 存储工厂 ----------
 inline auto createStorage(const std::string& dbPath) {
     using namespace sqlite_orm;
@@ -79,7 +88,8 @@ inline auto createStorage(const std::string& dbPath) {
 			make_column("target_id", &Message::target_id),  // nullable
 			make_column("content", &Message::content),
 			make_column("created_at", &Message::created_at),
-			foreign_key(&Message::sender_id).references(&User::id)
+			foreign_key(&Message::sender_id).references(&User::id),
+			foreign_key(&Message::target_id).references(&Clan::id)
 		),
 		make_table("clan_applications",
 			make_column("id", &ClanApplication::id, primary_key().autoincrement()),
@@ -91,6 +101,15 @@ inline auto createStorage(const std::string& dbPath) {
 			unique(&ClanApplication::clan_id, &ClanApplication::applicant_id, &ClanApplication::status),
 			foreign_key(&ClanApplication::clan_id).references(&Clan::id).on_delete.cascade(),
 			foreign_key(&ClanApplication::applicant_id).references(&User::id)
+		),
+		make_table("game_records",
+			make_column("id", &GameRecord::id, primary_key().autoincrement()),
+			make_column("user_id", &GameRecord::user_id),
+			make_column("mode", &GameRecord::mode),
+			make_column("played_at", &GameRecord::played_at),
+			make_column("duration_seconds", &GameRecord::duration_seconds),
+			make_column("three_bv", &GameRecord::three_bv),
+			foreign_key(&GameRecord::user_id).references(&User::id)
 		)
     );
 }

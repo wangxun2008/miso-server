@@ -5,6 +5,7 @@
 #include "user_manager.h"
 #include "clan_manager.h"
 #include "chat_manager.h"
+#include "game_manager.h"
 
 using namespace app;
 
@@ -31,6 +32,7 @@ int main() {
 		UserManager um(storage);
 		ClanManager cm(storage, um);
 		ChatManager chat(storage, um, cm);
+		GameManager gm(storage, um);
 
 		int choice;
 		while (true) {
@@ -38,6 +40,7 @@ int main() {
 			std::cout << "1. 用户管理" << std::endl;
 			std::cout << "2. 战队管理" << std::endl;
 			std::cout << "3. 消息管理" << std::endl;
+			std::cout << "4. 游戏记录" << std::endl;
 			std::cout << "0. 退出" << std::endl;
 			std::cout << "选择: ";
 			std::cin >> choice;
@@ -343,6 +346,79 @@ int main() {
 								break;
 							default:
 								std::cout << "无效选项" << std::endl;
+						}
+					} catch (const AppException& e) {
+						std::cerr << "操作失败: " << e.what() << std::endl;
+					}
+				}
+			} else if (choice == 4) {
+				int gameChoice;
+				int userId, mode, durationSec, threeBv, limit;
+				while (true) {
+					std::cout << "\n--- 扫雷游戏记录 ---" << std::endl;
+					std::cout << "1. 提交记录" << std::endl;
+					std::cout << "2. 查看排行榜" << std::endl;
+					std::cout << "3. 查看个人记录" << std::endl;
+					std::cout << "0. 返回主菜单" << std::endl;
+					std::cout << "选择: ";
+					std::cin >> gameChoice;
+					if (gameChoice == 0) break;
+
+					try {
+						switch (gameChoice) {
+						case 1:
+							std::cout << "用户ID: "; std::cin >> userId;
+							std::cout << "模式 (1=初级 2=中级 3=高级): "; std::cin >> mode;
+							std::cout << "用时(秒): "; std::cin >> durationSec;
+							std::cout << "3BV: "; std::cin >> threeBv;
+							{
+								int id = gm.addGameRecord(userId, mode, durationSec, threeBv);
+								std::cout << "记录已保存，ID: " << id << std::endl;
+							}
+							break;
+						case 2:
+							std::cout << "模式 (1=初级 2=中级 3=高级): "; std::cin >> mode;
+							std::cout << "显示前几名? "; std::cin >> limit;
+							{
+								auto leaderboard = gm.getLeaderboard(mode, limit);
+								if (leaderboard.empty()) {
+									std::cout << "暂无记录" << std::endl;
+								} else {
+									std::cout << "排名\t用户\t用时(s)\t3BV\t时间" << std::endl;
+									int rank = 1;
+									for (const auto& rec : leaderboard) {
+										std::string name = um.getUserName(rec.user_id);
+										std::cout << rank << "\t" << name << "\t"
+												  << rec.duration_seconds << "\t"
+												  << rec.three_bv << "\t"
+												  << rec.played_at << std::endl;
+										++rank;
+									}
+								}
+							}
+							break;
+						case 3:
+							std::cout << "用户ID: "; std::cin >> userId;
+							std::cout << "模式 (1-3，或 -1 全部): "; std::cin >> mode;
+							{
+								auto records = gm.getUserRecords(userId, mode);
+								if (records.empty()) {
+									std::cout << "暂无记录" << std::endl;
+								} else {
+									std::cout << "ID\t模式\t用时(s)\t3BV\t时间" << std::endl;
+									for (const auto& rec : records) {
+										std::string modeStr = (rec.mode == 1 ? "初级" :
+																rec.mode == 2 ? "中级" : "高级");
+										std::cout << rec.id << "\t" << modeStr << "\t"
+												  << rec.duration_seconds << "\t"
+												  << rec.three_bv << "\t"
+												  << rec.played_at << std::endl;
+									}
+								}
+							}
+							break;
+						default:
+							std::cout << "无效选项" << std::endl;
 						}
 					} catch (const AppException& e) {
 						std::cerr << "操作失败: " << e.what() << std::endl;

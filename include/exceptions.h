@@ -127,4 +127,21 @@ public:
         : ApplicationException("User " + std::to_string(userId) + " is already a member of clan " + std::to_string(clanId)) {}
 };
 
+class GameException : public AppException {
+public:
+    explicit GameException(const std::string& msg) : AppException(msg) {}
+};
+
+class InvalidGameModeException : public GameException {
+public:
+    explicit InvalidGameModeException(int mode)
+        : GameException("Invalid game mode: " + std::to_string(mode)) {}
+};
+
+class GameRecordNotFoundException : public GameException {
+public:
+    explicit GameRecordNotFoundException(int recordId)
+        : GameException("Game record not found: " + std::to_string(recordId)) {}
+};
+
 } // namespace app

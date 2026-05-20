@@ -1,10 +1,13 @@
 #include <cassert>
+#include <chrono>
+#include <thread>
 #include <iostream>
 #include "storage.h"
 #include "exceptions.h"
 #include "user_manager.h"
 #include "clan_manager.h"
 #include "chat_manager.h"
+#include "game_manager.h"
 
 using namespace app;
 
@@ -255,12 +258,67 @@ void testClanApplications() {
     std::cout << "testClanApplications passed.\n";
 }
 
+void testGameRecords() {
+    auto storage = createStorage(":memory:");
+    storage.sync_schema();
+    UserManager um(storage);
+    GameManager gm(storage, um);
+
+    // 准备用户
+    int uid1 = um.registerUser("player1", "pwd");
+    int uid2 = um.registerUser("player2", "pwd");
+
+    // 添加记录
+    int rec1 = gm.addGameRecord(uid1, 1, 120, 45); // 初级，120秒
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+    int rec2 = gm.addGameRecord(uid2, 1, 90, 40);  // 初级，90秒（更快）
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+    int rec3 = gm.addGameRecord(uid1, 2, 300, 150); // 中级
+
+    // 测试排行榜（初级）
+    auto lb = gm.getLeaderboard(1, 10);
+    assert(lb.size() == 2);
+    assert(lb[0].user_id == uid2); // 90秒排第一
+    assert(lb[1].user_id == uid1);
+
+    // 测试个人记录（uid1 所有模式）
+    auto recs = gm.getUserRecords(uid1, -1);
+    for (auto i : recs) {
+		std::cout << i.id << ' ' << i.played_at << std::endl;
+	}
+	assert(recs.size() == 2);
+    // 按时间降序，最近的在前面
+    assert(recs[0].id == rec3);
+
+    // 测试无效模式
+    try {
+        gm.addGameRecord(uid1, 4, 100, 50);
+        assert(false);
+    } catch (const InvalidGameModeException&) {}
+
+    // 测试不存在的用户
+    try {
+        gm.addGameRecord(9999, 1, 100, 50);
+        assert(false);
+    } catch (const UserNotFoundException&) {}
+
+    // 测试非活跃用户（软删除后不能添加记录）
+    um.deleteUser("player2");
+    try {
+        gm.addGameRecord(uid2, 1, 100, 50);
+        assert(false);
+    } catch (const UserNotFoundException&) {}
+
+    std::cout << "testGameRecords passed.\n";
+}
+
 int main() {
     try {
         testUserRegistration();
         testClanOperations();
 		testChat();
 		testClanApplications();
+		testGameRecords();
         std::cout << "All tests passed." << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Test failed: " << e.what() << std::endl;
