@@ -161,4 +161,15 @@ public:
         : ChunkException("Active chunk already exists at (" + std::to_string(x) + "," + std::to_string(y) + ")") {}
 };
 
+class OnlineException : public AppException {
+public:
+    explicit OnlineException(const std::string& msg) : AppException(msg) {}
+};
+
+class UserOfflineException : public OnlineException {
+public:
+    explicit UserOfflineException(int userId)
+        : OnlineException("User " + std::to_string(userId) + " is offline") {}
+};
+
 } // namespace app

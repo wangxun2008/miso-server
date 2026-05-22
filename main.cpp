@@ -7,6 +7,7 @@
 #include "chat_manager.h"
 #include "game_manager.h"
 #include "chunk_manager.h"
+#include "online_manager.h"
 
 using namespace app;
 
@@ -35,6 +36,7 @@ int main() {
 		ChatManager chat(storage, um, cm);
 		GameManager gm(storage, um);
 		ChunkManager chunkMgr(storage, um);
+		OnlineManager om(storage, um);
 
 		int choice;
 		while (true) {
@@ -44,6 +46,7 @@ int main() {
 			std::cout << "3. 消息管理" << std::endl;
 			std::cout << "4. 游戏记录" << std::endl;
 			std::cout << "5. 区块管理" << std::endl;
+			std::cout << "6. 在线状态" << std::endl;
 			std::cout << "0. 退出" << std::endl;
 			std::cout << "选择: ";
 			std::cin >> choice;
@@ -488,6 +491,69 @@ int main() {
 										std::cout << "(" << c.x << "," << c.y << ") ID:" << c.id
 												  << " 数据:" << c.data << std::endl;
 									}
+								}
+							}
+							break;
+						default:
+							std::cout << "无效选项" << std::endl;
+						}
+					} catch (const AppException& e) {
+						std::cerr << "操作失败: " << e.what() << std::endl;
+					}
+				}
+			} else if (choice == 6) {
+				int onlineChoice;
+				int userId, timeout;
+				while (true) {
+					std::cout << "\n--- 在线状态管理 ---" << std::endl;
+					std::cout << "1. 标记上线" << std::endl;
+					std::cout << "2. 标记下线" << std::endl;
+					std::cout << "3. 更新心跳" << std::endl;
+					std::cout << "4. 检查是否在线" << std::endl;
+					std::cout << "5. 查看在线用户列表" << std::endl;
+					std::cout << "0. 返回主菜单" << std::endl;
+					std::cout << "选择: ";
+					std::cin >> onlineChoice;
+					if (onlineChoice == 0) break;
+
+					try {
+						switch (onlineChoice) {
+						case 1:
+							std::cout << "用户ID: "; std::cin >> userId;
+							om.userOnline(userId);
+							std::cout << "用户 " << userId << " 已上线" << std::endl;
+							break;
+						case 2:
+							std::cout << "用户ID: "; std::cin >> userId;
+							om.userOffline(userId);
+							std::cout << "用户 " << userId << " 已下线" << std::endl;
+							break;
+						case 3:
+							std::cout << "用户ID: "; std::cin >> userId;
+							om.updateHeartbeat(userId);
+							std::cout << "心跳已更新" << std::endl;
+							break;
+						case 4:
+							std::cout << "用户ID: "; std::cin >> userId;
+							std::cout << "超时秒数(默认60): "; std::cin >> timeout;
+							if (om.isUserOnline(userId, timeout)) {
+								std::cout << "用户 " << userId << " 在线" << std::endl;
+							} else {
+								std::cout << "用户 " << userId << " 离线或心跳超时" << std::endl;
+							}
+							break;
+						case 5:
+							std::cout << "超时秒数(默认60): "; std::cin >> timeout;
+							{
+								auto onlineIds = om.getOnlineUsers(timeout);
+								if (onlineIds.empty()) {
+									std::cout << "当前无在线用户" << std::endl;
+								} else {
+									std::cout << "在线用户ID: ";
+									for (int id : onlineIds) {
+										std::cout << id << " ";
+									}
+									std::cout << std::endl;
 								}
 							}
 							break;

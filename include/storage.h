@@ -65,6 +65,13 @@ struct Chunk {
     std::string data;
 };
 
+struct UserSession {
+    int id = 0;
+    int user_id = 0;
+    bool is_online = false;
+    int64_t last_heartbeat = 0;
+};
+
 // ---------- 存储工厂 ----------
 inline auto createStorage(const std::string& dbPath) {
     using namespace sqlite_orm;
@@ -133,6 +140,14 @@ inline auto createStorage(const std::string& dbPath) {
 			make_column("data", &Chunk::data),
 			unique(&Chunk::x, &Chunk::y, &Chunk::deleted_at),
 			foreign_key(&Chunk::last_updated_by).references(&User::id)
+		),
+		make_table("user_sessions",
+			make_column("id", &UserSession::id, primary_key().autoincrement()),
+			make_column("user_id", &UserSession::user_id),
+			make_column("is_online", &UserSession::is_online, default_value(false)),
+			make_column("last_heartbeat", &UserSession::last_heartbeat),
+			unique(&UserSession::user_id),  // 每个用户最多一条会话记录
+			foreign_key(&UserSession::user_id).references(&User::id)
 		)
     );
 }

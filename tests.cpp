@@ -9,6 +9,7 @@
 #include "chat_manager.h"
 #include "game_manager.h"
 #include "chunk_manager.h"
+#include "online_manager.h"
 
 using namespace app;
 
@@ -363,6 +364,59 @@ void testChunkManager() {
     std::cout << "testChunkManager passed.\n";
 }
 
+void testOnlineStatus() {
+    auto storage = createStorage(":memory:");
+    storage.sync_schema();
+    UserManager um(storage);
+    OnlineManager om(storage, um);
+
+    int uid = um.registerUser("player1", "pwd");
+    int uid2 = um.registerUser("player2", "pwd");
+
+    // 未上线时检查离线
+    assert(!om.isUserOnline(uid));
+
+    // 上线
+    om.userOnline(uid);
+    assert(om.isUserOnline(uid));
+    // 检查在线列表
+    auto online = om.getOnlineUsers(5);
+    assert(online.size() == 1);
+    assert(online[0] == uid);
+
+    // 心跳
+    om.updateHeartbeat(uid);
+    assert(om.isUserOnline(uid));
+
+    // 下线
+    om.userOffline(uid);
+    assert(!om.isUserOnline(uid));
+
+    // 多用户
+    om.userOnline(uid);
+    om.userOnline(uid2);
+    online = om.getOnlineUsers(5);
+    assert(online.size() == 2);
+
+    // 测试超时（模拟心跳过期）
+    // 直接修改数据库使心跳过期（用低阶操作）
+    auto session = storage.get_all<UserSession>(sqlite_orm::where(sqlite_orm::c(&UserSession::user_id) == uid)).front();
+    session.last_heartbeat = getCurrentTimestamp() - 100; // 100秒前
+    storage.update(session);
+    assert(!om.isUserOnline(uid, 60));  // 超时60秒，判定离线
+    // 但好友2还没过期
+    assert(om.isUserOnline(uid2, 60));
+
+    // 对离线用户更新心跳应抛异常
+	om.userOffline(uid);
+	try {
+        om.updateHeartbeat(uid);
+        assert(false);
+    } catch (const UserOfflineException&) {}
+
+    std::cout << "testOnlineStatus passed.\n";
+}
+
 int main() {
     try {
         testUserRegistration();
@@ -371,6 +425,7 @@ int main() {
 		testClanApplications();
 		testGameRecords();
 		testChunkManager();
+		testOnlineStatus();
         std::cout << "All tests passed." << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Test failed: " << e.what() << std::endl;
