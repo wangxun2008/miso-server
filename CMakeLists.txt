@@ -14,6 +14,7 @@ add_library(miso STATIC
     src/clan_manager.cpp
 	src/chat_manager.cpp
 	src/game_manager.cpp
+	src/chunk_manager.cpp
 )
 target_include_directories(miso PUBLIC include)
 target_link_libraries(miso PUBLIC SQLite::SQLite3)

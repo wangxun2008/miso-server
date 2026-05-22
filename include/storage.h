@@ -54,6 +54,17 @@ struct GameRecord {
     int three_bv = 0;          // 3BV 值
 };
 
+struct Chunk {
+    int id = 0;
+    int x = 0;
+    int y = 0;
+    int64_t created_at = 0;
+    int64_t updated_at = 0;
+    int last_updated_by = 0;
+    int64_t deleted_at = 0;      // 0: active
+    std::string data;
+};
+
 // ---------- 存储工厂 ----------
 inline auto createStorage(const std::string& dbPath) {
     using namespace sqlite_orm;
@@ -110,6 +121,18 @@ inline auto createStorage(const std::string& dbPath) {
 			make_column("duration_seconds", &GameRecord::duration_seconds),
 			make_column("three_bv", &GameRecord::three_bv),
 			foreign_key(&GameRecord::user_id).references(&User::id)
+		),
+		make_table("chunks",
+			make_column("id", &Chunk::id, primary_key().autoincrement()),
+			make_column("x", &Chunk::x),
+			make_column("y", &Chunk::y),
+			make_column("created_at", &Chunk::created_at),
+			make_column("updated_at", &Chunk::updated_at),
+			make_column("last_updated_by", &Chunk::last_updated_by),
+			make_column("deleted_at", &Chunk::deleted_at, default_value(0)),
+			make_column("data", &Chunk::data),
+			unique(&Chunk::x, &Chunk::y, &Chunk::deleted_at),
+			foreign_key(&Chunk::last_updated_by).references(&User::id)
 		)
     );
 }

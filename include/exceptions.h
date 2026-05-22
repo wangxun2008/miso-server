@@ -144,4 +144,21 @@ public:
         : GameException("Game record not found: " + std::to_string(recordId)) {}
 };
 
+class ChunkException : public AppException {
+public:
+    explicit ChunkException(const std::string& msg) : AppException(msg) {}
+};
+
+class ChunkNotFoundException : public ChunkException {
+public:
+    ChunkNotFoundException(int x, int y)
+        : ChunkException("Chunk not found at (" + std::to_string(x) + "," + std::to_string(y) + ")") {}
+};
+
+class ChunkAlreadyExistsException : public ChunkException {
+public:
+    ChunkAlreadyExistsException(int x, int y)
+        : ChunkException("Active chunk already exists at (" + std::to_string(x) + "," + std::to_string(y) + ")") {}
+};
+
 } // namespace app

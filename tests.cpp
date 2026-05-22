@@ -8,6 +8,7 @@
 #include "clan_manager.h"
 #include "chat_manager.h"
 #include "game_manager.h"
+#include "chunk_manager.h"
 
 using namespace app;
 
@@ -283,9 +284,6 @@ void testGameRecords() {
 
     // 测试个人记录（uid1 所有模式）
     auto recs = gm.getUserRecords(uid1, -1);
-    for (auto i : recs) {
-		std::cout << i.id << ' ' << i.played_at << std::endl;
-	}
 	assert(recs.size() == 2);
     // 按时间降序，最近的在前面
     assert(recs[0].id == rec3);
@@ -312,6 +310,59 @@ void testGameRecords() {
     std::cout << "testGameRecords passed.\n";
 }
 
+void testChunkManager() {
+    auto storage = createStorage(":memory:");
+    storage.sync_schema();
+    UserManager um(storage);
+    ChunkManager cm(storage, um);
+
+    int uid = um.registerUser("builder", "pwd");
+
+    // 创建区块
+    Chunk c1 = cm.createOrUpdateChunk(10, 20, uid, "grass");
+    assert(c1.id > 0);
+    assert(c1.data == "grass");
+    assert(c1.x == 10 && c1.y == 20);
+
+    // 读取区块
+    Chunk c2 = cm.getChunk(10, 20);
+    assert(c2.data == "grass");
+
+    // 更新区块（同坐标再次调用）
+    Chunk c3 = cm.createOrUpdateChunk(10, 20, uid, "stone");
+    assert(c3.id == c1.id);  // id 相同，表示是更新
+    assert(c3.data == "stone");
+
+    // 软删除
+    cm.deleteChunk(10, 20);
+    // 删除后无法获取
+    try {
+        cm.getChunk(10, 20);
+        assert(false);
+    } catch (const ChunkNotFoundException&) {}
+
+    // 可以在同一坐标再次创建（因为旧记录已删除）
+    Chunk c4 = cm.createOrUpdateChunk(10, 20, uid, "water");
+    assert(c4.id != c1.id);  // 新记录
+    assert(c4.data == "water");
+
+    // 范围查询
+    cm.createOrUpdateChunk(11, 20, uid, "dirt");
+    cm.createOrUpdateChunk(10, 21, uid, "sand");
+    cm.createOrUpdateChunk(15, 25, uid, "snow");
+    auto chunks = cm.getChunksInArea(10, 20, 11, 21);
+    // 应返回 (10,20),(11,20),(10,21)
+    assert(chunks.size() == 3);
+
+    // 无效用户操作
+    try {
+        cm.createOrUpdateChunk(0, 0, 9999, "fail");
+        assert(false);
+    } catch (const UserNotFoundException&) {}
+
+    std::cout << "testChunkManager passed.\n";
+}
+
 int main() {
     try {
         testUserRegistration();
@@ -319,6 +370,7 @@ int main() {
 		testChat();
 		testClanApplications();
 		testGameRecords();
+		testChunkManager();
         std::cout << "All tests passed." << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Test failed: " << e.what() << std::endl;

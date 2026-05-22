@@ -6,6 +6,7 @@
 #include "clan_manager.h"
 #include "chat_manager.h"
 #include "game_manager.h"
+#include "chunk_manager.h"
 
 using namespace app;
 
@@ -33,6 +34,7 @@ int main() {
 		ClanManager cm(storage, um);
 		ChatManager chat(storage, um, cm);
 		GameManager gm(storage, um);
+		ChunkManager chunkMgr(storage, um);
 
 		int choice;
 		while (true) {
@@ -41,6 +43,7 @@ int main() {
 			std::cout << "2. 战队管理" << std::endl;
 			std::cout << "3. 消息管理" << std::endl;
 			std::cout << "4. 游戏记录" << std::endl;
+			std::cout << "5. 区块管理" << std::endl;
 			std::cout << "0. 退出" << std::endl;
 			std::cout << "选择: ";
 			std::cin >> choice;
@@ -413,6 +416,77 @@ int main() {
 												  << rec.duration_seconds << "\t"
 												  << rec.three_bv << "\t"
 												  << rec.played_at << std::endl;
+									}
+								}
+							}
+							break;
+						default:
+							std::cout << "无效选项" << std::endl;
+						}
+					} catch (const AppException& e) {
+						std::cerr << "操作失败: " << e.what() << std::endl;
+					}
+				}
+			} else if (choice == 5) {
+				int chunkChoice;
+				int x, y, userId;
+				std::string data;
+				while (true) {
+					std::cout << "\n--- 区块管理 ---" << std::endl;
+					std::cout << "1. 创建/更新区块" << std::endl;
+					std::cout << "2. 读取区块" << std::endl;
+					std::cout << "3. 删除区块" << std::endl;
+					std::cout << "4. 范围查询" << std::endl;
+					std::cout << "0. 返回主菜单" << std::endl;
+					std::cout << "选择: ";
+					std::cin >> chunkChoice;
+					if (chunkChoice == 0) break;
+
+					try {
+						switch (chunkChoice) {
+						case 1:
+							std::cout << "X坐标: "; std::cin >> x;
+							std::cout << "Y坐标: "; std::cin >> y;
+							std::cout << "操作用户ID: "; std::cin >> userId;
+							std::cin.ignore();
+							std::cout << "区块数据: ";
+							std::getline(std::cin, data);
+							{
+								Chunk chunk = chunkMgr.createOrUpdateChunk(x, y, userId, data);
+								std::cout << "操作成功，区块ID: " << chunk.id << std::endl;
+							}
+							break;
+						case 2:
+							std::cout << "X坐标: "; std::cin >> x;
+							std::cout << "Y坐标: "; std::cin >> y;
+							{
+								Chunk chunk = chunkMgr.getChunk(x, y);
+								std::cout << "区块ID: " << chunk.id
+										  << ", 数据: " << chunk.data
+										  << ", 最后更新者: " << um.getUserName(chunk.last_updated_by)
+										  << ", 更新时间: " << chunk.updated_at << std::endl;
+							}
+							break;
+						case 3:
+							std::cout << "X坐标: "; std::cin >> x;
+							std::cout << "Y坐标: "; std::cin >> y;
+							chunkMgr.deleteChunk(x, y);
+							std::cout << "区块已删除" << std::endl;
+							break;
+						case 4:
+							int minX, minY, maxX, maxY;
+							std::cout << "最小X: "; std::cin >> minX;
+							std::cout << "最小Y: "; std::cin >> minY;
+							std::cout << "最大X: "; std::cin >> maxX;
+							std::cout << "最大Y: "; std::cin >> maxY;
+							{
+								auto chunks = chunkMgr.getChunksInArea(minX, minY, maxX, maxY);
+								if (chunks.empty()) {
+									std::cout << "范围内无区块" << std::endl;
+								} else {
+									for (const auto& c : chunks) {
+										std::cout << "(" << c.x << "," << c.y << ") ID:" << c.id
+												  << " 数据:" << c.data << std::endl;
 									}
 								}
 							}
