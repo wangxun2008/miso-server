@@ -12,6 +12,7 @@
 #include "notice_manager.h"
 #include "topic_manager.h"
 #include "comment_manager.h"
+#include "mine_map_manager.h"
 
 using namespace app;
 
@@ -51,6 +52,7 @@ int main() {
         NoticeManager nm(storage, um);
         TopicManager tm(storage, um, cm);
         CommentManager commgr(storage, um, tm);
+        MineMapManager mm(chunkMgr, um, 3);
 
         int choice;
         while (true) {
@@ -789,6 +791,63 @@ int main() {
                     }
                 }
             }
+			else if (choice == 9) {
+				int mChoice;
+				int wx, wy, uid, terrain, owner;
+				while (true) {
+					std::cout << "\n--- 扫雷地图 ---" << std::endl;
+					std::cout << "1. 查看单元格" << std::endl;
+					std::cout << "2. 修改领地" << std::endl;
+					std::cout << "3. 修改地形" << std::endl;
+					std::cout << "4. 放置地雷" << std::endl;
+					std::cout << "5. 查看缓存数量" << std::endl;
+					std::cout << "0. 返回" << std::endl;
+					std::cout << "选择: ";
+					std::cin >> mChoice;
+					if (mChoice == 0) break;
+					try {
+						switch (mChoice) {
+						case 1:
+							std::cout << "世界坐标 x y: "; std::cin >> wx >> wy;
+							{
+								Cell cell = mm.getCell(wx, wy);
+								std::cout << "地雷:" << cell.has_mine << " 翻开:" << cell.is_revealed
+										  << " 标记:" << cell.is_flagged << " 相邻雷数:" << cell.adjacent_mines
+										  << " 领主ID:" << cell.owner_id << " 地形:" << cell.terrain << std::endl;
+							}
+							break;
+						case 2:
+							std::cout << "世界坐标 x y 用户ID 新领主ID(-1清空): "; std::cin >> wx >> wy >> uid >> owner;
+							mm.modifyCell(wx, wy, uid, [owner](Cell& cell) {
+								cell.owner_id = owner;
+							});
+							std::cout << "领地已更新" << std::endl;
+							break;
+						case 3:
+							std::cout << "世界坐标 x y 用户ID 地形值: "; std::cin >> wx >> wy >> uid >> terrain;
+							mm.modifyCell(wx, wy, uid, [terrain](Cell& cell) {
+								cell.terrain = terrain;
+							});
+							std::cout << "地形已更新" << std::endl;
+							break;
+						case 4:
+							std::cout << "世界坐标 x y 用户ID: "; std::cin >> wx >> wy >> uid;
+							mm.modifyCell(wx, wy, uid, [](Cell& cell) {
+								cell.has_mine = true;
+							});
+							std::cout << "地雷已放置" << std::endl;
+							break;
+						case 5:
+							std::cout << "缓存区块数: " << mm.cacheSize() << std::endl;
+							break;
+						default:
+							std::cout << "无效选项" << std::endl;
+						}
+					} catch (const AppException& e) {
+						std::cerr << "操作失败: " << e.what() << std::endl;
+					}
+				}
+			}
             else {
                 std::cout << "无效选项" << std::endl;
             }

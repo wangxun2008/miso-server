@@ -13,6 +13,7 @@
 #include "notice_manager.h"
 #include "topic_manager.h"
 #include "comment_manager.h"
+#include "mine_map_manager.h"
 
 using namespace app;
 
@@ -545,6 +546,58 @@ void testDiscussion() {
     std::cout << "testDiscussion passed.\n";
 }
 
+void testMineMapManager() {
+    auto storage = createStorage(":memory:");
+    storage.sync_schema();
+    UserManager um(storage);
+    ChunkManager cm(storage, um);
+    MineMapManager mm(cm, um, 3); // 小缓存
+
+    int uid = um.registerUser("player", "pwd");
+
+    // 设置地雷
+    std::vector<std::pair<int,int>> mines = {{0,0}, {1,1}};
+    mm.placeMines(mines, uid);
+
+    Cell c = mm.getCell(0, 0);
+    assert(c.has_mine);
+    assert(!c.is_revealed);
+
+    // 修改领地
+    mm.modifyCell(0, 0, uid, [uid](Cell& cell) {
+        cell.owner_id = uid;
+    });
+    c = mm.getCell(0, 0);
+    assert(c.owner_id == uid);
+
+    // 跨区块写入
+    mm.modifyCell(20, 20, uid, [](Cell& cell) {
+        cell.terrain = 3;
+    });
+    mm.flushAll(uid);
+    mm.unloadChunk(1, 1, uid); // 区块 (1,1)
+    c = mm.getCell(20, 20);
+    assert(c.terrain == 3);
+
+    // 缓存淘汰
+    mm.modifyCell(0, 16, uid, [](Cell& cell) { cell.has_mine = true; });
+    mm.modifyCell(16, 0, uid, [](Cell& cell) { cell.has_mine = true; });
+    assert(mm.cacheSize() <= 3);
+
+    // 序列化正确性
+    ChunkGrid grid;
+    grid.cells[0][0].has_mine = true;
+    grid.cells[5][5].owner_id = 123456;
+    grid.cells[15][15].terrain = 255;
+    std::string ser = MineMapManager::serializeGrid(grid);
+    ChunkGrid deser = MineMapManager::deserializeGrid(ser);
+    assert(deser.cells[0][0].has_mine);
+    assert(deser.cells[5][5].owner_id == 123456);
+    assert(deser.cells[15][15].terrain == 255);
+
+    std::cout << "testMineMapManager passed.\n";
+}
+
 int main() {
     try {
         testUserRegistration();
@@ -556,6 +609,7 @@ int main() {
 		testOnlineStatus();
 		testNotices();
 		testDiscussion();
+		testMineMapManager();
  		std::cout << "All tests passed." << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Test failed: " << e.what() << std::endl;

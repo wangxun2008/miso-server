@@ -212,4 +212,15 @@ public:
         : DiscussionException("Invalid scope: " + std::to_string(scope)) {}
 };
 
+class MineMapException : public AppException {
+public:
+    explicit MineMapException(const std::string& msg) : AppException(msg) {}
+};
+
+class CellAccessException : public MineMapException {
+public:
+    CellAccessException(int wx, int wy)
+        : MineMapException("Cell access failed at (" + std::to_string(wx) + "," + std::to_string(wy) + ")") {}
+};
+
 } // namespace app

@@ -19,6 +19,7 @@ add_library(miso STATIC
 	src/notice_manager.cpp
 	src/topic_manager.cpp
 	src/comment_manager.cpp
+	src/mine_map_manager.cpp
 )
 target_include_directories(miso PUBLIC include)
 target_link_libraries(miso PUBLIC SQLite::SQLite3)
