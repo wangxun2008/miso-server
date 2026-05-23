@@ -223,4 +223,21 @@ public:
         : MineMapException("Cell access failed at (" + std::to_string(wx) + "," + std::to_string(wy) + ")") {}
 };
 
+class GameLogicException : public AppException {
+public:
+    explicit GameLogicException(const std::string& msg) : AppException(msg) {}
+};
+
+class CellAlreadyRevealedException : public GameLogicException {
+public:
+    CellAlreadyRevealedException(int x, int y)
+        : GameLogicException("Cell already revealed at (" + std::to_string(x) + "," + std::to_string(y) + ")") {}
+};
+
+class CellNotRevealedException : public GameLogicException {
+public:
+    CellNotRevealedException(int x, int y)
+        : GameLogicException("Cell not revealed yet at (" + std::to_string(x) + "," + std::to_string(y) + ")") {}
+};
+
 } // namespace app

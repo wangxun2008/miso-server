@@ -60,8 +60,8 @@ struct Chunk {
     int y = 0;
     int64_t created_at = 0;
     int64_t updated_at = 0;
-    int last_updated_by = 0;
-    int64_t deleted_at = 0;      // 0: active
+    std::optional<int> last_updated_by;  // 改为可空
+    int64_t deleted_at = 0;
     std::string data;
 };
 

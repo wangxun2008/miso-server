@@ -126,6 +126,7 @@ std::optional<User> UserManager::getUserById(int userId) const {
 }
 
 bool UserManager::isUserActive(int userId) const {
+	if (userId == 0) return true;
     auto users = storage.get_all<User>(
         where(c(&User::id) == userId and c(&User::deleted_at) == 0)
     );

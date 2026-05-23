@@ -10,32 +10,28 @@ ChunkManager::ChunkManager(Storage& storage, UserManager& userMgr)
     : storage(storage), userMgr(userMgr) {}
 
 Chunk ChunkManager::createOrUpdateChunk(int x, int y, int userId, const std::string& data) {
-    if (!userMgr.isUserActive(userId)) {
+    if (userId != 0 && !userMgr.isUserActive(userId)) {
         throw UserNotFoundException("ID " + std::to_string(userId));
     }
 
     auto guard = storage.transaction_guard();
-
-    // 尝试找到活跃块
     auto existing = storage.get_all<Chunk>(
         where(c(&Chunk::x) == x and c(&Chunk::y) == y and c(&Chunk::deleted_at) == 0)
     );
 
     if (!existing.empty()) {
-        // 更新
         Chunk chunk = existing.front();
         chunk.data = data;
-        chunk.last_updated_by = userId;
+        chunk.last_updated_by = (userId == 0) ? std::nullopt : std::optional<int>(userId);
         chunk.updated_at = getCurrentTimestamp();
         storage.update(chunk);
         guard.commit();
         return chunk;
     } else {
-        // 创建
         Chunk chunk;
         chunk.x = x;
         chunk.y = y;
-        chunk.last_updated_by = userId;
+        chunk.last_updated_by = (userId == 0) ? std::nullopt : std::optional<int>(userId);
         chunk.data = data;
         chunk.created_at = getCurrentTimestamp();
         chunk.updated_at = chunk.created_at;

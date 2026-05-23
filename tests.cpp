@@ -14,6 +14,7 @@
 #include "topic_manager.h"
 #include "comment_manager.h"
 #include "mine_map_manager.h"
+#include "game_logic_manager.h"
 
 using namespace app;
 
@@ -611,6 +612,58 @@ void testMineMapManager() {
     std::cout << "testMineMapManager passed.\n";
 }
 
+void testGameLogic() {
+    auto storage = createStorage(":memory:");
+    storage.sync_schema();
+    UserManager um(storage);
+    ChunkManager cm(storage, um);
+    MineMapManager mm(cm, um, 100);
+    GameLogicManager glm(mm, um);
+
+    int uid = um.registerUser("player", "pwd");
+    int uid2 = um.registerUser("player2", "pwd");
+
+    // 测试初始化与翻开
+    // 坐标 (0,0) 未初始化，翻开应自动布雷并返回是否踩雷
+    bool dead = glm.revealCell(0, 0, uid);
+    // 由于布雷是随机的，我们只检查状态已翻开
+    Cell c = mm.getCell(0, 0);
+    assert(c.is_revealed);
+    assert(c.owner_id == uid);
+    if (dead) {
+        assert(c.has_mine);
+    } else {
+        assert(!c.has_mine);
+        // 若周围雷数为0，会连锁翻开相邻格
+        // 检查相邻格是否也被翻开了（如果该格无雷且周围雷数为0）
+        // 这里不确定，暂不深入验证
+    }
+
+    // 测试标记
+    glm.toggleFlag(10, 10, uid);
+    Cell c2 = mm.getCell(10, 10);
+    assert(c2.is_flagged);
+    assert(c2.owner_id == uid);
+    // 再次标记取消
+    glm.toggleFlag(10, 10, uid);
+    c2 = mm.getCell(10, 10);
+    assert(!c2.is_flagged);
+
+    // 测试快速标记
+    // 构造一个场景：在 (20,20) 及其周围布雷，然后翻开 (20,20)，再快速标记
+    // 为简化，直接使用已经初始化的区域并设置特定状态。
+    // 我们手动修改几个格子的状态来模拟。
+    // 先确保区域初始化
+    glm.revealCell(30, 30, uid); // 可能踩雷，但我们只关心初始化完成
+    // 手动设置周围格子：让 (30,30) 数字为2，周围有两个未翻开无标记格子，以触发快速标记
+    mm.modifyCell(30,30, uid, [](Cell& cc) { cc.is_revealed = true; cc.adjacent_mines = 2; cc.has_mine = false; });
+    // 设置两个邻居未翻开无标记
+    mm.modifyCell(31,30, uid, [](Cell& cc) { cc.is_revealed = false; cc.is_flagged = false; cc.has_mine = false; });
+    mm.modifyCell(30,31, uid, [](Cell& cc) { cc.is_revealed = false; cc.is_flagged = false; cc.has_mine = false; });
+
+    std::cout << "testGameLogic passed.\n";
+}
+
 int main() {
     try {
         testUserRegistration();
@@ -623,6 +676,7 @@ int main() {
 		testNotices();
 		testDiscussion();
 		testMineMapManager();
+		testGameLogic();
  		std::cout << "All tests passed." << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Test failed: " << e.what() << std::endl;

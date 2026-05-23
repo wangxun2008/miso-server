@@ -482,7 +482,7 @@ int main() {
                                 Chunk chunk = chunkMgr.getChunk(x, y);
                                 std::cout << "区块ID: " << chunk.id
                                           << ", 数据: " << chunk.data
-                                          << ", 最后更新者: " << um.getUserName(chunk.last_updated_by)
+                                          << ", 最后更新者: " << um.getUserName(chunk.last_updated_by.value())
                                           << ", 更新时间: " << chunk.updated_at << std::endl;
                             }
                             break;
