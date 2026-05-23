@@ -172,4 +172,17 @@ public:
         : OnlineException("User " + std::to_string(userId) + " is offline") {}
 };
 
+class NoticeException : public AppException {
+public:
+    explicit NoticeException(const std::string& msg) : AppException(msg) {}
+};
+
+class NoticeNotFoundException : public NoticeException {
+public:
+    explicit NoticeNotFoundException(int noticeId)
+        : NoticeException("Notice not found: " + std::to_string(noticeId)) {}
+};
+
+// 复用已有的 NotAuthorizedException，在 app namespace 中已有定义
+
 } // namespace app

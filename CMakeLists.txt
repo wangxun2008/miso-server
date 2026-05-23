@@ -16,6 +16,7 @@ add_library(miso STATIC
 	src/game_manager.cpp
 	src/chunk_manager.cpp
 	src/online_manager.cpp
+	src/notice_manager.cpp
 )
 target_include_directories(miso PUBLIC include)
 target_link_libraries(miso PUBLIC SQLite::SQLite3)

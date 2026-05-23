@@ -8,6 +8,7 @@
 #include "game_manager.h"
 #include "chunk_manager.h"
 #include "online_manager.h"
+#include "notice_manager.h"
 
 using namespace app;
 
@@ -37,6 +38,7 @@ int main() {
 		GameManager gm(storage, um);
 		ChunkManager chunkMgr(storage, um);
 		OnlineManager om(storage, um);
+		NoticeManager nm(storage, um);
 
 		int choice;
 		while (true) {
@@ -47,6 +49,7 @@ int main() {
 			std::cout << "4. 游戏记录" << std::endl;
 			std::cout << "5. 区块管理" << std::endl;
 			std::cout << "6. 在线状态" << std::endl;
+			std::cout << "7. 全局通知" << std::endl;
 			std::cout << "0. 退出" << std::endl;
 			std::cout << "选择: ";
 			std::cin >> choice;
@@ -556,6 +559,74 @@ int main() {
 									std::cout << std::endl;
 								}
 							}
+							break;
+						default:
+							std::cout << "无效选项" << std::endl;
+						}
+					} catch (const AppException& e) {
+						std::cerr << "操作失败: " << e.what() << std::endl;
+					}
+				}
+			} else if (choice == 7) {
+				int nChoice;
+				int userId, noticeId, limit, offset;
+				std::string title, content;
+				while (true) {
+					std::cout << "\n--- 全局通知 ---" << std::endl;
+					std::cout << "1. 发布通知" << std::endl;
+					std::cout << "2. 查看通知列表" << std::endl;
+					std::cout << "3. 查看通知详情" << std::endl;
+					std::cout << "4. 删除通知" << std::endl;
+					std::cout << "0. 返回主菜单" << std::endl;
+					std::cout << "选择: ";
+					std::cin >> nChoice;
+					if (nChoice == 0) break;
+
+					try {
+						switch (nChoice) {
+						case 1:
+							std::cout << "发布者用户ID: "; std::cin >> userId;
+							std::cin.ignore();
+							std::cout << "标题: ";
+							std::getline(std::cin, title);
+							std::cout << "内容: ";
+							std::getline(std::cin, content);
+							{
+								int nid = nm.publishNotice(userId, title, content);
+								std::cout << "通知已发布，ID: " << nid << std::endl;
+							}
+							break;
+						case 2:
+							std::cout << "每页条数: "; std::cin >> limit;
+							std::cout << "偏移量: "; std::cin >> offset;
+							{
+								auto notices = nm.getActiveNotices(limit, offset);
+								if (notices.empty()) {
+									std::cout << "暂无通知" << std::endl;
+								} else {
+									for (const auto& n : notices) {
+										std::cout << "ID:" << n.id << " 标题:" << n.title
+												  << " 发布者:" << um.getUserName(n.publisher_id)
+												  << " 时间:" << n.published_at << std::endl;
+									}
+								}
+							}
+							break;
+						case 3:
+							std::cout << "通知ID: "; std::cin >> noticeId;
+							{
+								Notice n = nm.getNoticeById(noticeId);
+								std::cout << "标题: " << n.title << std::endl;
+								std::cout << "内容: " << n.content << std::endl;
+								std::cout << "发布者: " << um.getUserName(n.publisher_id) << std::endl;
+								std::cout << "时间: " << n.published_at << std::endl;
+							}
+							break;
+						case 4:
+							std::cout << "通知ID: "; std::cin >> noticeId;
+							std::cout << "操作用户ID: "; std::cin >> userId;
+							nm.deleteNotice(noticeId, userId);
+							std::cout << "删除成功" << std::endl;
 							break;
 						default:
 							std::cout << "无效选项" << std::endl;

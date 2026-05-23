@@ -10,6 +10,7 @@
 #include "game_manager.h"
 #include "chunk_manager.h"
 #include "online_manager.h"
+#include "notice_manager.h"
 
 using namespace app;
 
@@ -178,11 +179,12 @@ void testChat() {
     } catch (const NotMemberOfClanException&) {}
 
     // 再发一条全局消息，检查分页
+	std::this_thread::sleep_for(std::chrono::seconds(1));
     chat.sendGlobalMessage(uid2, "Second");
     auto recentTwo = chat.getGlobalMessages(2, 0);
     assert(recentTwo.size() == 2);
     // 按时间倒序，最新的在前
-    // assert(recentTwo[0].content == "Hello everyone!");
+    assert(recentTwo[0].content == "Second");
 
     std::cout << "testChat passed.\n";
 }
@@ -417,6 +419,57 @@ void testOnlineStatus() {
     std::cout << "testOnlineStatus passed.\n";
 }
 
+void testNotices() {
+    auto storage = createStorage(":memory:");
+    storage.sync_schema();
+    UserManager um(storage);
+    NoticeManager nm(storage, um);
+
+    int uid1 = um.registerUser("admin", "pwd");
+    int uid2 = um.registerUser("user", "pwd");
+
+    // 发布通知
+    int nid1 = nm.publishNotice(uid1, "Welcome", "Hello everyone");
+	std::this_thread::sleep_for(std::chrono::seconds(1));
+    int nid2 = nm.publishNotice(uid1, "Update", "New features");
+    assert(nid1 > 0 && nid2 > 0);
+
+    // 获取有效通知列表
+    auto list = nm.getActiveNotices();
+    assert(list.size() == 2);
+    assert(list[0].id == nid2); // 最新在前
+
+    // 获取详情
+    Notice n = nm.getNoticeById(nid1);
+    assert(n.title == "Welcome");
+
+    // 非发布者删除应抛出 NotAuthorizedException
+    try {
+        nm.deleteNotice(nid1, uid2);
+        assert(false);
+    } catch (const NotAuthorizedException&) {}
+
+    // 发布者删除
+    nm.deleteNotice(nid1, uid1);
+    // 删除后无法获取
+    try {
+        nm.getNoticeById(nid1);
+        assert(false);
+    } catch (const NoticeNotFoundException&) {}
+
+    // 列表只剩一条
+    list = nm.getActiveNotices();
+    assert(list.size() == 1);
+
+    // 不存在的用户发布通知
+    try {
+        nm.publishNotice(9999, "Test", "Fail");
+        assert(false);
+    } catch (const UserNotFoundException&) {}
+
+    std::cout << "testNotices passed.\n";
+}
+
 int main() {
     try {
         testUserRegistration();
@@ -426,7 +479,8 @@ int main() {
 		testGameRecords();
 		testChunkManager();
 		testOnlineStatus();
-        std::cout << "All tests passed." << std::endl;
+		testNotices();
+ 		std::cout << "All tests passed." << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Test failed: " << e.what() << std::endl;
         return 1;

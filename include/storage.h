@@ -72,6 +72,15 @@ struct UserSession {
     int64_t last_heartbeat = 0;
 };
 
+struct Notice {
+    int id = 0;
+    int publisher_id = 0;
+    std::string title;
+    std::string content;
+    int64_t published_at = 0;
+    int64_t deleted_at = 0;   // 0 表示未删除
+};
+
 // ---------- 存储工厂 ----------
 inline auto createStorage(const std::string& dbPath) {
     using namespace sqlite_orm;
@@ -148,6 +157,15 @@ inline auto createStorage(const std::string& dbPath) {
 			make_column("last_heartbeat", &UserSession::last_heartbeat),
 			unique(&UserSession::user_id),  // 每个用户最多一条会话记录
 			foreign_key(&UserSession::user_id).references(&User::id)
+		),
+		make_table("notices",
+			make_column("id", &Notice::id, primary_key().autoincrement()),
+			make_column("publisher_id", &Notice::publisher_id),
+			make_column("title", &Notice::title),
+			make_column("content", &Notice::content),
+			make_column("published_at", &Notice::published_at),
+			make_column("deleted_at", &Notice::deleted_at, default_value(0)),
+			foreign_key(&Notice::publisher_id).references(&User::id)
 		)
     );
 }
