@@ -183,6 +183,33 @@ public:
         : NoticeException("Notice not found: " + std::to_string(noticeId)) {}
 };
 
-// 复用已有的 NotAuthorizedException，在 app namespace 中已有定义
+class DiscussionException : public AppException {
+public:
+    explicit DiscussionException(const std::string& msg) : AppException(msg) {}
+};
+
+class TopicNotFoundException : public DiscussionException {
+public:
+    explicit TopicNotFoundException(int topicId)
+        : DiscussionException("Topic not found: " + std::to_string(topicId)) {}
+};
+
+class CommentNotFoundException : public DiscussionException {
+public:
+    explicit CommentNotFoundException(int commentId)
+        : DiscussionException("Comment not found: " + std::to_string(commentId)) {}
+};
+
+class AccessDeniedException : public DiscussionException {
+public:
+    explicit AccessDeniedException(const std::string& msg)
+        : DiscussionException("Access denied: " + msg) {}
+};
+
+class InvalidScopeException : public DiscussionException {
+public:
+    explicit InvalidScopeException(int scope)
+        : DiscussionException("Invalid scope: " + std::to_string(scope)) {}
+};
 
 } // namespace app

@@ -81,6 +81,27 @@ struct Notice {
     int64_t deleted_at = 0;   // 0 表示未删除
 };
 
+struct Topic {
+    int id = 0;
+    int author_id = 0;
+    std::string title;
+    std::string content;
+    int scope = 0;                // 0=global, 1=clan
+    std::optional<int> target_id; // clan id when scope=1
+    int64_t created_at = 0;
+    int64_t updated_at = 0;
+    int64_t deleted_at = 0;
+};
+
+struct Comment {
+    int id = 0;
+    int topic_id = 0;
+    int author_id = 0;
+    std::string content;
+    int64_t created_at = 0;
+    int64_t deleted_at = 0;
+};
+
 // ---------- 存储工厂 ----------
 inline auto createStorage(const std::string& dbPath) {
     using namespace sqlite_orm;
@@ -166,6 +187,28 @@ inline auto createStorage(const std::string& dbPath) {
 			make_column("published_at", &Notice::published_at),
 			make_column("deleted_at", &Notice::deleted_at, default_value(0)),
 			foreign_key(&Notice::publisher_id).references(&User::id)
+		),
+		make_table("topics",
+			make_column("id", &Topic::id, primary_key().autoincrement()),
+			make_column("author_id", &Topic::author_id),
+			make_column("title", &Topic::title),
+			make_column("content", &Topic::content),
+			make_column("scope", &Topic::scope, default_value(0)),
+			make_column("target_id", &Topic::target_id),  // nullable
+			make_column("created_at", &Topic::created_at),
+			make_column("updated_at", &Topic::updated_at),
+			make_column("deleted_at", &Topic::deleted_at, default_value(0)),
+			foreign_key(&Topic::author_id).references(&User::id)
+		),
+		make_table("comments",
+			make_column("id", &Comment::id, primary_key().autoincrement()),
+			make_column("topic_id", &Comment::topic_id),
+			make_column("author_id", &Comment::author_id),
+			make_column("content", &Comment::content),
+			make_column("created_at", &Comment::created_at),
+			make_column("deleted_at", &Comment::deleted_at, default_value(0)),
+			foreign_key(&Comment::topic_id).references(&Topic::id).on_delete.cascade(),
+			foreign_key(&Comment::author_id).references(&User::id)
 		)
     );
 }

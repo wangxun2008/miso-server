@@ -11,6 +11,8 @@
 #include "chunk_manager.h"
 #include "online_manager.h"
 #include "notice_manager.h"
+#include "topic_manager.h"
+#include "comment_manager.h"
 
 using namespace app;
 
@@ -470,6 +472,79 @@ void testNotices() {
     std::cout << "testNotices passed.\n";
 }
 
+void testDiscussion() {
+    auto storage = createStorage(":memory:");
+    storage.sync_schema();
+    UserManager um(storage);
+    ClanManager cm(storage, um);
+    TopicManager tm(storage, um, cm);
+    CommentManager commgr(storage, um, tm);
+
+    int u1 = um.registerUser("alice", "pwd");
+    int u2 = um.registerUser("bob", "pwd");
+    int u3 = um.registerUser("charlie", "pwd");
+
+    int clanId = cm.createClan("Dev", u1);
+    cm.addMember(clanId, u2);
+
+    // global topic
+    int globalPost = tm.createTopic(u1, "Global", "Hello world", 0);
+    // clan topic
+    int clanPost = tm.createTopic(u1, "ClanOnly", "Secret", 1, clanId);
+
+    // visibility
+    auto vis1 = tm.getVisibleTopics(u1);
+    assert(vis1.size() == 2);
+    auto vis2 = tm.getVisibleTopics(u2);
+    assert(vis2.size() == 2);
+    auto vis3 = tm.getVisibleTopics(u3);
+    assert(vis3.size() == 1);
+    assert(vis3[0].id == globalPost);
+
+    // access denied for u3 on clan post
+    try {
+        tm.getTopicById(clanPost, u3);
+        assert(false);
+    } catch (const AccessDeniedException&) {}
+
+    // edit permission
+    tm.updateTopic(globalPost, u1, "New", "New content");
+    try {
+        tm.updateTopic(globalPost, u2, "Hack", "Hack");
+        assert(false);
+    } catch (const NotAuthorizedException&) {}
+
+    // delete topic
+    tm.deleteTopic(globalPost, u1);
+    try {
+        tm.getTopicById(globalPost, u1);
+        assert(false);
+    } catch (const TopicNotFoundException&) {}
+
+    // comments
+    int c1 = commgr.addComment(clanPost, u2, "Nice!");
+    try {
+        commgr.addComment(clanPost, u3, "Intrude");
+        assert(false);
+    } catch (const AccessDeniedException&) {}
+
+    auto comments = commgr.getComments(clanPost, u2);
+    assert(comments.size() == 1);
+    assert(comments[0].content == "Nice!");
+
+    commgr.updateComment(c1, u2, "Updated");
+    try {
+        commgr.updateComment(c1, u1, "Hack");
+        assert(false);
+    } catch (const NotAuthorizedException&) {}
+
+    commgr.deleteComment(c1, u2);
+    comments = commgr.getComments(clanPost, u2);
+    assert(comments.empty());
+
+    std::cout << "testDiscussion passed.\n";
+}
+
 int main() {
     try {
         testUserRegistration();
@@ -480,6 +555,7 @@ int main() {
 		testChunkManager();
 		testOnlineStatus();
 		testNotices();
+		testDiscussion();
  		std::cout << "All tests passed." << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Test failed: " << e.what() << std::endl;
