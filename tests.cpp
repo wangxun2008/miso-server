@@ -593,7 +593,20 @@ void testMineMapManager() {
     ChunkGrid deser = MineMapManager::deserializeGrid(ser);
     assert(deser.cells[0][0].has_mine);
     assert(deser.cells[5][5].owner_id == 123456);
-    assert(deser.cells[15][15].terrain == 255);
+	assert(deser.cells[15][15].terrain == 255);
+
+	// 测试初始化标记
+	mm.modifyCell(0, 0, uid, [](Cell& c) {
+		c.is_initialized = true;
+	});
+	Cell c2 = mm.getCell(0, 0);
+	assert(c2.is_initialized);
+	// 序列化/反序列化验证
+	ChunkGrid grid2;
+	grid2.cells[0][0].is_initialized = true;
+	std::string ser2 = MineMapManager::serializeGrid(grid2);
+	ChunkGrid deser2 = MineMapManager::deserializeGrid(ser2);
+	assert(deser2.cells[0][0].is_initialized);
 
     std::cout << "testMineMapManager passed.\n";
 }

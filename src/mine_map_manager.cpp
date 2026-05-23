@@ -29,9 +29,10 @@ std::string MineMapManager::serializeGrid(const ChunkGrid& grid) {
         for (int x = 0; x < ChunkGrid::SIZE; ++x) {
             const Cell& cell = grid.cells[y][x];
             uint8_t flags = 0;
-            if (cell.has_mine)  flags |= 1;
-            if (cell.is_revealed) flags |= 2;
-            if (cell.is_flagged) flags |= 4;
+            if (cell.has_mine)       flags |= 1;    // bit0
+            if (cell.is_revealed)    flags |= 2;    // bit1
+            if (cell.is_flagged)     flags |= 4;    // bit2
+            if (cell.is_initialized) flags |= 8;    // bit3
             binary[idx] = static_cast<char>(flags);
             binary[idx + 1] = static_cast<char>(cell.adjacent_mines & 0xFF);
             int32_t owner = cell.owner_id;
@@ -54,9 +55,8 @@ std::string MineMapManager::serializeGrid(const ChunkGrid& grid) {
 ChunkGrid MineMapManager::deserializeGrid(const std::string& hex) {
     ChunkGrid grid;
     if (hex.size() < ChunkGrid::SIZE * ChunkGrid::SIZE * 7 * 2) {
-        return grid; // 无效数据返回空网格
+        return grid;
     }
-    // 十六进制解码
     auto hexCharToInt = [](char c) -> int {
         if (c >= '0' && c <= '9') return c - '0';
         if (c >= 'A' && c <= 'F') return c - 'A' + 10;
@@ -74,12 +74,13 @@ ChunkGrid MineMapManager::deserializeGrid(const std::string& hex) {
         for (int x = 0; x < ChunkGrid::SIZE; ++x) {
             Cell& cell = grid.cells[y][x];
             uint8_t flags = static_cast<uint8_t>(binary[idx]);
-            cell.has_mine = flags & 1;
-            cell.is_revealed = flags & 2;
-            cell.is_flagged = flags & 4;
+            cell.has_mine      = flags & 1;
+            cell.is_revealed   = flags & 2;
+            cell.is_flagged    = flags & 4;
+            cell.is_initialized = flags & 8;
             cell.adjacent_mines = static_cast<uint8_t>(binary[idx + 1]);
             std::memcpy(&cell.owner_id, &binary[idx + 2], sizeof(int32_t));
-            cell.terrain = static_cast<uint8_t>(binary[idx + 6]);
+            cell.terrain       = static_cast<uint8_t>(binary[idx + 6]);
             idx += 7;
         }
     }

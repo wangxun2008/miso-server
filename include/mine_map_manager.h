@@ -16,8 +16,9 @@ struct Cell {
     int  adjacent_mines = 0;
     int  owner_id = 0;       // 0=无主
     int  terrain = 0;
+    bool is_initialized = false;   // 新增：区块是否已初始化
 };
-
+	
 struct ChunkGrid {
     static constexpr int SIZE = 16;
     std::array<std::array<Cell, SIZE>, SIZE> cells;

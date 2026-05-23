@@ -30,5 +30,5 @@ target_link_libraries(main miso)
 add_executable(run_tests tests.cpp)
 target_link_libraries(run_tests miso)
 
-add_executable(minesweeper_game temp/minesweeper_game.cpp)
-target_link_libraries(minesweeper_game miso)
+# add_executable(minesweeper_game temp/minesweeper_game.cpp)
+# target_link_libraries(minesweeper_game miso)
