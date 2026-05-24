@@ -2,6 +2,7 @@
   "name": "miso-server",
   "version": "1.0.0",
   "dependencies": [
-    "sqlite-orm"
+    "sqlite-orm",
+	"sfml"
   ]
 }

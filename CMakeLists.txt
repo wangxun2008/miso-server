@@ -8,6 +8,7 @@ include_directories(include ../sqlite_orm/include)
 
 # 链接 sqlite3
 find_package(SQLite3 REQUIRED)
+find_package(SFML CONFIG REQUIRED COMPONENTS System Network)
 
 add_library(miso STATIC
     src/user_manager.cpp
@@ -23,7 +24,7 @@ add_library(miso STATIC
 	src/game_logic_manager.cpp
 )
 target_include_directories(miso PUBLIC include)
-target_link_libraries(miso PUBLIC SQLite::SQLite3)
+target_link_libraries(miso PUBLIC SQLite::SQLite3 SFML::Network SFML::System)
 
 add_executable(main main.cpp)
 target_link_libraries(main miso)
