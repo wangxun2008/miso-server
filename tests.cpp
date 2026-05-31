@@ -15,6 +15,11 @@
 #include "comment_manager.h"
 #include "mine_map_manager.h"
 #include "game_logic_manager.h"
+#include "server.h"
+#include "client.h"
+#include <thread>
+#include <chrono>
+#include <cstring>
 
 using namespace miso;
 
@@ -664,6 +669,83 @@ void testGameLogic() {
     std::cout << "testGameLogic passed.\n";
 }
 
+void testNetwork() {
+    using namespace miso;
+    const unsigned short tcpPort = 54321;
+    const unsigned short udpPort = 54322;
+
+    // 启动服务器
+    Server server(tcpPort, udpPort);
+    server.start();
+    // 给服务器一点时间开始监听
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    // 创建客户端并连接
+    Client client(sf::IpAddress::LocalHost, tcpPort, udpPort);
+    bool connected = client.connect();
+    assert(connected);
+    // 等待初始时间同步稳定
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    // 客户端发送一条测试消息
+    sf::Packet sendPkt;
+    std::string testStr = "Hello, Server!";
+    sendPkt << testStr;
+    bool sent = client.sendMessage(std::move(sendPkt));
+    assert(sent);
+
+    // 服务器端获取消息（稍等片刻让网络线程传递）
+    std::optional<RawClientMessage> raw = std::nullopt;
+    for (int i = 0; i < 50; ++i) { // 尝试多次，总计约 1 秒
+        raw = server.getNextMessage(sf::milliseconds(100));
+        if (raw.has_value()) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    assert(raw.has_value());
+    assert(raw->packet.has_value()); // 不是断开消息
+    // 解析消息
+    std::string receivedStr;
+    (*raw->packet) >> receivedStr;
+    assert(receivedStr == testStr);
+
+    // 服务器回复客户端
+    sf::Packet replyPkt;
+    replyPkt << "Hello, Client!";
+    server.sendMessage(raw->clientId, std::move(replyPkt));
+    // 等待回复到达客户端
+    std::optional<sf::Packet> clientReply = std::nullopt;
+    for (int i = 0; i < 50; ++i) {
+        clientReply = client.receiveMessage();
+        if (clientReply.has_value()) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    assert(clientReply.has_value());
+    std::string replyStr;
+    (*clientReply) >> replyStr;
+    assert(replyStr == "Hello, Client!");
+
+    // 测试时间同步：客户端 getTimestamp 应接近服务器 getCurrentTimestamp
+    int64_t serverTime = server.getCurrentTimestamp();
+    int64_t clientTime = client.getTimestamp();
+    // 允许一些误差（取决于网络延迟和同步质量）
+    assert(std::abs(serverTime - clientTime) < 500000); // 0.5 秒内
+
+    // 客户端断开连接
+    client.disconnect();
+    // 服务器应收到断开消息
+    raw = std::nullopt;
+    for (int i = 0; i < 50; ++i) {
+        raw = server.getNextMessage(sf::milliseconds(0));
+        if (raw.has_value()) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    assert(raw.has_value());
+    assert(!raw->packet.has_value()); // 断开消息 packet 为空
+
+    server.stop();
+    std::cout << "testNetwork passed.\n";
+}
+
 int main() {
     try {
         testUserRegistration();
@@ -677,6 +759,7 @@ int main() {
 		testDiscussion();
 		testMineMapManager();
 		testGameLogic();
+		testNetwork();
  		std::cout << "All tests passed." << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Test failed: " << e.what() << std::endl;
