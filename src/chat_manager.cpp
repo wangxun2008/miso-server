@@ -3,7 +3,7 @@
 #include "clan_manager.h"
 #include <sqlite_orm/sqlite_orm.h>
 
-namespace app {
+namespace miso {
 
 using namespace sqlite_orm;
 
@@ -83,4 +83,4 @@ std::vector<Message> ChatManager::getClanMessages(int clanId, int userId, int li
     );
 }
 
-} // namespace app
+} // namespace miso

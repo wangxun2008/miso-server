@@ -2,7 +2,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace app {
+namespace miso {
 
 class AppException : public std::runtime_error {
 public:
@@ -240,4 +240,4 @@ public:
         : GameLogicException("Cell not revealed yet at (" + std::to_string(x) + "," + std::to_string(y) + ")") {}
 };
 
-} // namespace app
+} // namespace miso

@@ -4,7 +4,7 @@
 #include <memory>
 #include <chrono>
 
-namespace app {
+namespace miso {
 
 // ---------- 模型 ----------
 struct User {
@@ -220,4 +220,4 @@ inline int64_t getCurrentTimestamp() {
     return duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
 }
 
-} // namespace app
+} // namespace miso

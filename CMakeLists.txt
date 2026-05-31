@@ -2,13 +2,14 @@ cmake_minimum_required(VERSION 3.14)
 project(miso_server)
 
 set(CMAKE_CXX_STANDARD 17)
-
-# sqlite_orm header-only，假设路径为 ../sqlite_orm/include
-include_directories(include ../sqlite_orm/include)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # 链接 sqlite3
 find_package(SQLite3 REQUIRED)
+find_package(SqliteOrm CONFIG REQUIRED)
 find_package(SFML CONFIG REQUIRED COMPONENTS System Network)
+find_package(concurrentqueue CONFIG REQUIRED)
 
 add_library(miso STATIC
     src/user_manager.cpp
@@ -22,15 +23,19 @@ add_library(miso STATIC
 	src/comment_manager.cpp
 	src/mine_map_manager.cpp
 	src/game_logic_manager.cpp
+    src/server.cpp
+	src/client.cpp
 )
 target_include_directories(miso PUBLIC include)
-target_link_libraries(miso PUBLIC SQLite::SQLite3 SFML::Network SFML::System)
+target_link_libraries(miso PUBLIC 
+	SQLite::SQLite3 
+	SFML::Network 
+	SFML::System
+	concurrentqueue::concurrentqueue
+)
 
 add_executable(main main.cpp)
 target_link_libraries(main miso)
 
 add_executable(run_tests tests.cpp)
 target_link_libraries(run_tests miso)
-
-# add_executable(minesweeper_game temp/minesweeper_game.cpp)
-# target_link_libraries(minesweeper_game miso)

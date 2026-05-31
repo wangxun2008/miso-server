@@ -14,7 +14,7 @@
 #include "comment_manager.h"
 #include "mine_map_manager.h"
 
-using namespace app;
+using namespace miso;
 
 // 辅助：清空输入缓冲区
 void clearCin() {

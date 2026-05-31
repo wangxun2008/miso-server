@@ -2,7 +2,7 @@
 #include "user_manager.h"
 #include <sqlite_orm/sqlite_orm.h>
 
-namespace app {
+namespace miso {
 
 using namespace sqlite_orm;
 
@@ -81,4 +81,4 @@ std::vector<int> OnlineManager::getOnlineUsers(int timeoutSeconds) const {
     return userIds;
 }
 
-} // namespace app
+} // namespace miso

@@ -2,7 +2,7 @@
 #include "user_manager.h"
 #include <sqlite_orm/sqlite_orm.h>
 
-namespace app {
+namespace miso {
 
 using namespace sqlite_orm;
 
@@ -148,12 +148,12 @@ int ClanManager::applyToClan(int clanId, int userId) {
     }
 
     // 5. 创建申请
-    ClanApplication app;
-    app.clan_id = clanId;
-    app.applicant_id = userId;
-    app.status = 0; // pending
-    app.created_at = getCurrentTimestamp();
-    return storage.insert(app);
+    ClanApplication miso;
+    miso.clan_id = clanId;
+    miso.applicant_id = userId;
+    miso.status = 0; // pending
+    miso.created_at = getCurrentTimestamp();
+    return storage.insert(miso);
 }
 
 void ClanManager::processApplication(int applicationId, int handlerId, const std::string& action) {
@@ -164,10 +164,10 @@ void ClanManager::processApplication(int applicationId, int handlerId, const std
     if (apps.empty()) {
         throw ApplicationNotFoundException(applicationId);
     }
-    ClanApplication app = apps.front();
+    ClanApplication miso = apps.front();
 
     // 2. 验证处理人是该战队领导者
-    Clan clan = getClan(app.clan_id);
+    Clan clan = getClan(miso.clan_id);
     if (clan.leader_id != handlerId) {
         throw NotAuthorizedException();
     }
@@ -177,33 +177,33 @@ void ClanManager::processApplication(int applicationId, int handlerId, const std
 
     if (action == "approve") {
         // 检查用户是否还在活跃状态
-        if (!userMgr.isUserActive(app.applicant_id)) {
-            throw UserNotFoundException("ID " + std::to_string(app.applicant_id));
+        if (!userMgr.isUserActive(miso.applicant_id)) {
+            throw UserNotFoundException("ID " + std::to_string(miso.applicant_id));
         }
         // 检查是否已在战队（可能同时被别的途径加入）
-        auto members = getClanMembers(app.clan_id);
+        auto members = getClanMembers(miso.clan_id);
         bool alreadyMember = false;
         for (const auto& m : members) {
-            if (m.user_id == app.applicant_id) {
+            if (m.user_id == miso.applicant_id) {
                 alreadyMember = true;
                 break;
             }
         }
         if (alreadyMember) {
-            throw AlreadyMemberException(app.applicant_id, app.clan_id);
+            throw AlreadyMemberException(miso.applicant_id, miso.clan_id);
         }
 
         // 添加成员
-        ClanMember cm{-1, app.clan_id, app.applicant_id};
+        ClanMember cm{-1, miso.clan_id, miso.applicant_id};
         storage.insert(cm);
 
-        app.status = 1; // approved
-        app.updated_at = getCurrentTimestamp();
-        storage.update(app);
+        miso.status = 1; // approved
+        miso.updated_at = getCurrentTimestamp();
+        storage.update(miso);
     } else if (action == "reject") {
-        app.status = 2; // rejected
-        app.updated_at = getCurrentTimestamp();
-        storage.update(app);
+        miso.status = 2; // rejected
+        miso.updated_at = getCurrentTimestamp();
+        storage.update(miso);
     } else {
         throw AppException("Invalid action: " + action);
     }
@@ -238,4 +238,4 @@ std::vector<ClanApplication> ClanManager::getPendingApplications(int clanId, int
     );
 }
 
-} // namespace app
+} // namespace miso

@@ -5,7 +5,7 @@
 #include <vector>
 #include <cstdint>
 
-namespace app {
+namespace miso {
 
 class UserManager;
 
@@ -43,4 +43,4 @@ private:
     void seedRngForCoord(int worldX, int worldY);
 };
 
-} // namespace app
+} // namespace miso

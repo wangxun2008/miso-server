@@ -4,7 +4,7 @@
 #include <vector>
 #include <optional>
 
-namespace app {
+namespace miso {
 
 class UserManager;
 
@@ -30,4 +30,4 @@ private:
     UserManager& userMgr;
 };
 
-} // namespace app
+} // namespace miso

@@ -5,7 +5,7 @@
 #include <string>
 #include <optional>
 
-namespace app {
+namespace miso {
 
 class UserManager {
 public:
@@ -31,4 +31,4 @@ private:
     Storage& storage;
 };
 
-} // namespace app
+} // namespace miso

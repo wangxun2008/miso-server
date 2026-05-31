@@ -3,7 +3,7 @@
 #include "exceptions.h"
 #include <vector>
 
-namespace app {
+namespace miso {
 
 class UserManager;
 class TopicManager;
@@ -26,4 +26,4 @@ private:
     TopicManager& topicMgr;
 };
 
-} // namespace app
+} // namespace miso

@@ -3,7 +3,7 @@
 #include <unordered_set>
 #include <queue>
 
-namespace app {
+namespace miso {
 
 // 将坐标对组合为 int64 作为哈希种子
 static inline uint64_t coordHash(int x, int y) {
@@ -187,4 +187,4 @@ void GameLogicManager::quickFlag(int worldX, int worldY, int userId) {
     }
 }
 
-} // namespace app
+} // namespace miso

@@ -4,7 +4,7 @@
 #include <vector>
 #include <optional>
 
-namespace app {
+namespace miso {
 
 class UserManager;
 class ClanManager;
@@ -32,4 +32,4 @@ private:
     bool canView(const Topic& topic, int viewerId) const;
 };
 
-} // namespace app
+} // namespace miso

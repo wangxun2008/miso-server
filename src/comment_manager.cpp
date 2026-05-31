@@ -3,7 +3,7 @@
 #include "user_manager.h"
 #include <sqlite_orm/sqlite_orm.h>
 
-namespace app {
+namespace miso {
 
 using namespace sqlite_orm;
 
@@ -65,4 +65,4 @@ void CommentManager::deleteComment(int commentId, int deleterId) {
     storage.update(comment);
 }
 
-} // namespace app
+} // namespace miso

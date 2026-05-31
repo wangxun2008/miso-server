@@ -7,7 +7,7 @@
 #include <utility>
 #include <array>
 
-namespace app {
+namespace miso {
 
 struct Cell {
     bool has_mine = false;
@@ -84,4 +84,4 @@ private:
     void evictIfNeeded(int userId);
 };
 
-} // namespace app
+} // namespace miso

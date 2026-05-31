@@ -16,7 +16,7 @@
 #include "mine_map_manager.h"
 #include "game_logic_manager.h"
 
-using namespace app;
+using namespace miso;
 
 void testUserRegistration() {
     auto storage = createStorage(":memory:");

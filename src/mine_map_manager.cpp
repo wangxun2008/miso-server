@@ -4,7 +4,7 @@
 #include <cstring>
 #include <algorithm>
 
-namespace app {
+namespace miso {
 
 static int floorDiv(int a, int b) {
     int q = a / b;
@@ -222,4 +222,4 @@ void MineMapManager::evictIfNeeded(int userId) {
     }
 }
 
-} // namespace app
+} // namespace miso

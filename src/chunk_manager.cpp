@@ -2,7 +2,7 @@
 #include "user_manager.h"
 #include <sqlite_orm/sqlite_orm.h>
 
-namespace app {
+namespace miso {
 
 using namespace sqlite_orm;
 
@@ -72,4 +72,4 @@ std::vector<Chunk> ChunkManager::getChunksInArea(int minX, int minY, int maxX, i
     );
 }
 
-} // namespace app
+} // namespace miso

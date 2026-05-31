@@ -5,7 +5,7 @@
 #include <string>
 #include <optional>
 
-namespace app {
+namespace miso {
 
 class UserManager;
 class ClanManager;
@@ -32,4 +32,4 @@ private:
     ClanManager& clanMgr;
 };
 
-} // namespace app
+} // namespace miso

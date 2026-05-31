@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <sqlite_orm/sqlite_orm.h>
 
-namespace app {
+namespace miso {
 
 using namespace sqlite_orm;
 
@@ -141,4 +141,4 @@ std::string UserManager::getUserName(int userId) const {
     return user->username;
 }
 
-} // namespace app
+} // namespace miso

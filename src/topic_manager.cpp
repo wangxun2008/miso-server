@@ -3,7 +3,7 @@
 #include "clan_manager.h"
 #include <sqlite_orm/sqlite_orm.h>
 
-namespace app {
+namespace miso {
 
 using namespace sqlite_orm;
 
@@ -133,4 +133,4 @@ void TopicManager::deleteTopic(int topicId, int deleterId) {
     storage.update(topic);
 }
 
-} // namespace app
+} // namespace miso

@@ -2,7 +2,7 @@
 #include "user_manager.h"
 #include <sqlite_orm/sqlite_orm.h>
 
-namespace app {
+namespace miso {
 
 using namespace sqlite_orm;
 
@@ -69,4 +69,4 @@ std::vector<GameRecord> GameManager::getUserRecords(int userId, int mode) const 
     }
 }
 
-} // namespace app
+} // namespace miso

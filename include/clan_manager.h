@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 
-namespace app {
+namespace miso {
 
 class UserManager;  // forward declaration
 
@@ -33,4 +33,4 @@ private:
     UserManager& userMgr;
 };
 
-} // namespace app
+} // namespace miso
