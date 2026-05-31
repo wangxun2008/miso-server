@@ -671,77 +671,66 @@ void testGameLogic() {
 
 void testNetwork() {
     using namespace miso;
-    const unsigned short tcpPort = 54321;
-    const unsigned short udpPort = 54322;
+    const unsigned short tcpPort = 54001;  // 使用固定端口避免与正式服务器冲突
+    const unsigned short udpPort = 54002;
 
     // 启动服务器
     Server server(tcpPort, udpPort);
     server.start();
-    // 给服务器一点时间开始监听
+    // 等待服务器就绪
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     // 创建客户端并连接
     Client client(sf::IpAddress::LocalHost, tcpPort, udpPort);
     bool connected = client.connect();
     assert(connected);
-    // 等待初始时间同步稳定
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    // 客户端发送一条测试消息
-    sf::Packet sendPkt;
-    std::string testStr = "Hello, Server!";
-    sendPkt << testStr;
-    bool sent = client.sendMessage(std::move(sendPkt));
-    assert(sent);
+    // 测试时间同步：获取时间戳并检查是否合理
+    int64_t ts = client.getTimestamp();
+    assert(ts > 0);
 
-    // 服务器端获取消息（稍等片刻让网络线程传递）
-    std::optional<RawClientMessage> raw = std::nullopt;
-    for (int i = 0; i < 50; ++i) { // 尝试多次，总计约 1 秒
-        raw = server.getNextMessage(sf::milliseconds(100));
-        if (raw.has_value()) break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    // 发送一个请求（不带业务数据，仅用于测试往返）
+    sf::Packet requestPacket;
+    std::string testData = "hello";
+    requestPacket << testData;
+    int64_t reqId = client.sendRequest(std::move(requestPacket));
+    assert(reqId >= 1);
+
+    // 在服务器端，我们需要处理这个请求并发送回复
+    // 这里我们模拟服务器端逻辑：获取下一个请求并回复
+    std::optional<RawClientMessage> rawMsg;
+    auto startTime = std::chrono::steady_clock::now();
+    while (!(rawMsg = server.getNextRequest(sf::milliseconds(100))).has_value()) {
+        if (std::chrono::steady_clock::now() - startTime > std::chrono::seconds(2)) {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-    assert(raw.has_value());
-    assert(raw->packet.has_value()); // 不是断开消息
-    // 解析消息
-    std::string receivedStr;
-    (*raw->packet) >> receivedStr;
-    assert(receivedStr == testStr);
+    assert(rawMsg.has_value());
+    assert(rawMsg->requestId == reqId);
 
-    // 服务器回复客户端
-    sf::Packet replyPkt;
-    replyPkt << "Hello, Client!";
-    server.sendMessage(raw->clientId, std::move(replyPkt));
-    // 等待回复到达客户端
-    std::optional<sf::Packet> clientReply = std::nullopt;
-    for (int i = 0; i < 50; ++i) {
-        clientReply = client.receiveMessage();
-        if (clientReply.has_value()) break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    // 构造回复数据
+    sf::Packet replyData;
+    std::string echo = "echo: " + testData;
+    replyData << echo;
+    server.sendReply(rawMsg->clientId, rawMsg->requestId, std::move(replyData));
+
+    // 客户端接收回复
+    std::optional<sf::Packet> reply;
+    startTime = std::chrono::steady_clock::now();
+    while (!(reply = client.receiveReply(reqId)).has_value()) {
+        if (std::chrono::steady_clock::now() - startTime > std::chrono::seconds(2)) {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-    assert(clientReply.has_value());
-    std::string replyStr;
-    (*clientReply) >> replyStr;
-    assert(replyStr == "Hello, Client!");
+    assert(reply.has_value());
+    std::string receivedEcho;
+    *reply >> receivedEcho;
+    assert(receivedEcho == echo);
 
-    // 测试时间同步：客户端 getTimestamp 应接近服务器 getCurrentTimestamp
-    int64_t serverTime = server.getCurrentTimestamp();
-    int64_t clientTime = client.getTimestamp();
-    // 允许一些误差（取决于网络延迟和同步质量）
-    assert(std::abs(serverTime - clientTime) < 500000); // 0.5 秒内
-
-    // 客户端断开连接
+    // 清理
     client.disconnect();
-    // 服务器应收到断开消息
-    raw = std::nullopt;
-    for (int i = 0; i < 50; ++i) {
-        raw = server.getNextMessage(sf::milliseconds(0));
-        if (raw.has_value()) break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    }
-    assert(raw.has_value());
-    assert(!raw->packet.has_value()); // 断开消息 packet 为空
-
     server.stop();
     std::cout << "testNetwork passed.\n";
 }

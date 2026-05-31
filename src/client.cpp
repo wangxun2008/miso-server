@@ -8,36 +8,34 @@ namespace miso {
 Client::Client(sf::IpAddress serverIp, unsigned short tcpPort, unsigned short udpPort)
     : serverIp_(std::move(serverIp)), tcpPort_(tcpPort), udpPort_(udpPort) {}
 
-Client::~Client() {
-    disconnect();
-}
+Client::~Client() { disconnect(); }
 
 bool Client::connect() {
     if (running_) return true;
 
+    // 建立 TCP 连接，非阻塞模式
     if (tcpSocket_.connect(serverIp_, tcpPort_, sf::seconds(5)) != sf::Socket::Status::Done) {
         std::cerr << "[Client] TCP connection failed\n";
         return false;
     }
-    // ✅ 关键：设置为非阻塞模式，避免网络线程卡在 receive
     tcpSocket_.setBlocking(false);
-
     std::cout << "[Client] TCP connected to " << serverIp_ << ":" << tcpPort_ << std::endl;
 
+    // 绑定 UDP 随机端口
     if (udpSocket_.bind(sf::Socket::AnyPort) != sf::Socket::Status::Done) {
         std::cerr << "[Client] Failed to bind UDP socket\n";
         tcpSocket_.disconnect();
         return false;
     }
 
+    // 启动线程
     running_ = true;
     stopSync_ = false;
     syncReady_ = false;
-
     netThread_ = std::thread(&Client::networkThreadFunc, this);
     syncThread_ = std::thread(&Client::timeSyncThreadFunc, this);
 
-    // 等待初始时间同步完成（最多 3 秒）
+    // 等待首次时间同步完成（最多3秒）
     {
         std::unique_lock lock(syncMutex_);
         syncCv_.wait_for(lock, std::chrono::seconds(3), [this] { return syncReady_; });
@@ -64,13 +62,16 @@ void Client::disconnect() {
     if (netThread_.joinable()) netThread_.join();
     if (syncThread_.joinable()) syncThread_.join();
 
-    // 清空队列
-    sf::Packet dummy;
+    // 清空队列和缓存
+    RawServerMessage dummy;
     while (incomingQueue_.try_dequeue(dummy)) {}
-    while (outgoingQueue_.try_dequeue(dummy)) {}
+    sf::Packet p;
+    while (outgoingQueue_.try_dequeue(p)) {}
+    pendingReplies_.clear();
 }
 
 void Client::syncTime() {
+    // 手动触发同步：等待下一次 syncReady 信号
     std::unique_lock lock(syncMutex_);
     syncReady_ = false;
     syncCv_.wait(lock, [this] { return syncReady_; });
@@ -80,74 +81,80 @@ int64_t Client::getTimestamp() const {
     return localClock_.getElapsedTime().asMicroseconds() + timeOffsetUs_.load();
 }
 
-bool Client::sendMessage(sf::Packet packet) {
-    if (!running_) return false;
-
-    // 获取原始数据（用户构造的包，尚未被读取）
-    const void* data = packet.getData();
-    std::size_t size = packet.getDataSize();
-
-    // 构建新包：时间戳 + 原始数据
-    sf::Packet newPacket;
-    newPacket << getTimestamp();
-    if (size > 0)
-        newPacket.append(data, size);
-
-    return outgoingQueue_.enqueue(std::move(newPacket));
+int64_t Client::sendRequest(sf::Packet packet) {
+    int64_t reqId = nextRequestId_++;
+    // 构造完整请求包：时间戳 + requestId + 用户数据
+    sf::Packet out;
+    out << getTimestamp() << reqId;
+    if (packet.getDataSize() > 0)
+        out.append(packet.getData(), packet.getDataSize());
+    outgoingQueue_.enqueue(std::move(out));
+    return reqId;
 }
 
-std::optional<sf::Packet> Client::receiveMessage() {
-    sf::Packet packet;
-    if (incomingQueue_.try_dequeue(packet))
+std::optional<sf::Packet> Client::receiveReply(int64_t requestId) {
+    // 将网络线程收到的所有原始回复移入 pendingReplies_
+    RawServerMessage raw;
+    while (incomingQueue_.try_dequeue(raw)) {
+        pendingReplies_.emplace(raw.requestId, std::move(raw.packet));
+    }
+    auto it = pendingReplies_.find(requestId);
+    if (it != pendingReplies_.end()) {
+        sf::Packet packet = std::move(it->second);
+        pendingReplies_.erase(it);
         return packet;
+    }
     return std::nullopt;
 }
 
 // ---------- 网络线程 ----------
 void Client::networkThreadFunc() {
     while (running_) {
-        // 1. 处理发送队列
+        // 发送所有待发送的请求
         sf::Packet outPacket;
         while (outgoingQueue_.try_dequeue(outPacket)) {
-            if (tcpSocket_.send(outPacket) == sf::Socket::Status::Done)
-                ; // 发送成功
-            else
+            if (tcpSocket_.send(outPacket) != sf::Socket::Status::Done) {
                 std::cerr << "[Client] Send failed\n";
+            }
         }
 
-        // 2. 尝试接收数据（非阻塞）
+        // 接收 TCP 回复
         sf::Packet inPacket;
         auto status = tcpSocket_.receive(inPacket);
         if (status == sf::Socket::Status::Done) {
-            incomingQueue_.enqueue(std::move(inPacket));
+            int64_t reqId = 0;
+            // 提取 requestId，剩余部分为用户数据
+            if (inPacket >> reqId) {
+                incomingQueue_.enqueue(RawServerMessage{reqId, std::move(inPacket)});
+            } else {
+                std::cerr << "[Client] Malformed reply packet\n";
+            }
         } else if (status == sf::Socket::Status::Disconnected) {
             running_ = false;
         }
-        // 其他状态（NotReady、Error 等）忽略
 
-        // 短暂休眠，防止 CPU 空转
-        sf::sleep(sf::milliseconds(1));
+        sf::sleep(sf::milliseconds(1));   // 避免空转
     }
 }
 
 // ---------- 时间同步线程 ----------
 void Client::timeSyncThreadFunc() {
-    constexpr float SYNC_INTERVAL = 0.5f;
-    constexpr int SAMPLE_COUNT = 10;
+    constexpr float SYNC_INTERVAL = 0.5f;   // 同步间隔（秒）
+    constexpr int SAMPLE_COUNT = 10;        // 平滑移动平均样本数
     std::vector<int64_t> offsetSamples;
 
     while (!stopSync_) {
         auto frameStart = localClock_.getElapsedTime().asSeconds();
 
-        // 发送请求 t1
+        // 发送 UDP 时间同步请求
         int64_t t1 = localClock_.getElapsedTime().asMicroseconds();
         sf::Packet request;
         request << t1;
         if (udpSocket_.send(request, serverIp_, udpPort_) != sf::Socket::Status::Done) {
-            // 可以忽略错误
+            std::cerr << "[Client] UDP send failed\n";
         }
 
-        // 接收回应
+        // 接收服务端回复
         sf::Packet response;
         std::optional<sf::IpAddress> senderAddr;
         unsigned short senderPort = 0;
@@ -156,7 +163,7 @@ void Client::timeSyncThreadFunc() {
             if (response >> t1_recv >> t2) {
                 int64_t t3 = localClock_.getElapsedTime().asMicroseconds();
                 int64_t rttUs = t3 - t1_recv;
-                int64_t offsetUs = t2 - (t3 - rttUs / 2);
+                int64_t offsetUs = t2 - (t3 - rttUs / 2);   // 简单 NTP 偏移计算
 
                 offsetSamples.push_back(offsetUs);
                 if (offsetSamples.size() > SAMPLE_COUNT)
@@ -166,8 +173,9 @@ void Client::timeSyncThreadFunc() {
                 for (auto v : offsetSamples) avgOffset += v;
                 avgOffset = offsetSamples.empty() ? 0 : avgOffset / static_cast<int64_t>(offsetSamples.size());
 
-                timeOffsetUs_ = avgOffset;
+                timeOffsetUs_ = avgOffset;   // 原子更新偏移量
 
+                // 通知同步已更新
                 {
                     std::lock_guard lock(syncMutex_);
                     syncReady_ = true;
@@ -176,11 +184,11 @@ void Client::timeSyncThreadFunc() {
             }
         }
 
-        // 控制频率
+        // 控制同步周期
         auto elapsed = localClock_.getElapsedTime().asSeconds() - frameStart;
         if (elapsed < SYNC_INTERVAL)
             sf::sleep(sf::seconds(SYNC_INTERVAL - elapsed));
     }
 }
 
-}  // namespace miso
+} // namespace miso
