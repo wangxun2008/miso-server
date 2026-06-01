@@ -25,6 +25,7 @@ add_library(miso STATIC
 	src/game_logic_manager.cpp
     src/server.cpp
 	src/client.cpp
+	src/miso_server.cpp
 )
 target_include_directories(miso PUBLIC include)
 target_link_libraries(miso PUBLIC 
@@ -34,8 +35,14 @@ target_link_libraries(miso PUBLIC
 	concurrentqueue::concurrentqueue
 )
 
-add_executable(main main.cpp)
-target_link_libraries(main miso)
+# add_executable(main main.cpp)
+# target_link_libraries(main miso)
 
-add_executable(run_tests tests.cpp)
-target_link_libraries(run_tests miso)
+# add_executable(run_tests tests.cpp)
+# target_link_libraries(run_tests miso)
+
+add_executable(temp temp.cpp)
+target_link_libraries(temp miso)
+
+add_executable(temp2 temp2.cpp)
+target_link_libraries(temp2 miso)

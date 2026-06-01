@@ -12,6 +12,7 @@ enum class Opcode : uint16_t {
     // ========== 通用/系统 1000-1099 ==========
     C2S_Heartbeat      = 1000,   // 发送：客户端本地时间戳
     S2C_Heartbeat      = 1001,   // 回复：服务器时间戳
+	S2C_Error		   = 1099,   // 服务器返回错误：errorCode(ErrorCode), errorMessage(std::string)
 
     // ========== 用户管理 1100-1199 ==========
     C2S_Register       = 1100,   // 发送：username, password
